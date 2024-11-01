@@ -1,2 +1,1 @@
-# litepack 
-📦 
+# `📦 litepack`
