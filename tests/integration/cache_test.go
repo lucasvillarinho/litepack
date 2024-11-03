@@ -10,9 +10,7 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	liteCache, err := cache.NewCache("tests",
-		cache.WithSyncInterval(5*time.Second),
-		cache.WithTimezone(time.Local))
+	liteCache, err := cache.NewCache("tests")
 	if err != nil {
 		panic(err)
 	}
