@@ -9,6 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lucasvillarinho/litepack/db"
+	"github.com/lucasvillarinho/litepack/internal"
 )
 
 // cache is a simple key-value store backed by an SQLite database.
@@ -78,6 +79,9 @@ func NewCache(url string, opts ...CacheOption) (*cache, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache table: %w", err)
 	}
+
+	// Start a background goroutine to clear expired cache entries
+	go internal.ScheduleFunction(internal.Every1Minutes, c.timezone, c.clearExpiredItems)
 
 	return c, nil
 
@@ -193,6 +197,22 @@ func (c *cache) Del(key string) error {
 	return err
 }
 
+// clearExpiredItems Deletes all cache entries that have expired.
+//
+// Returns:
+//   - error: an error if the operation failed
+func (c *cache) clearExpiredItems() error {
+	_, err := c.db.Exec(`
+		DELETE FROM cache WHERE expires_at <= ?;
+	`, time.Now().In(c.timezone))
+
+	if err != nil {
+		return fmt.Errorf("failed to clear expired cache entries: %w", err)
+	}
+
+	return nil
+}
+
 // Close closes the cache database connection.
 func (c *cache) Close() error {
 	return c.db.Close()
@@ -202,5 +222,9 @@ func (c *cache) Close() error {
 //
 // WARNING: THIS OPERATION IS IRREVERSIBLE.
 func (c *cache) Destroy() error {
+	err := c.Close()
+	if err != nil {
+		return err
+	}
 	return db.DeleteDatabase(c.db, c.url)
 }
