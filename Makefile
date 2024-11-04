@@ -1,3 +1,9 @@
+.PHONY: build
+build:
+	@echo "Building..."
+	@go build -o bin/ ./...
+	@echo "Build completed successfully"
+
 .PHONY: format
 format: ## Format code
 	@echo "Formatting code..."
