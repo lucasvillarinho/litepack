@@ -59,13 +59,16 @@ func NewScheduler(timezone *time.Location) Scheduler {
 //
 // Returns:
 //   - error: an error if the operation failed
-func (sc *scheduler) Task(scheduleTime ScheduleTime, timezone *time.Location, task func() error) error {
+func (sc *scheduler) Task(
+	scheduleTime ScheduleTime,
+	timezone *time.Location,
+	task func() error,
+) error {
 	_, err := sc.cron.AddFunc(string(scheduleTime), func() {
 		if err := task(); err != nil {
 			fmt.Printf("Error executing scheduled task: %v\n", err)
 		}
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to schedule task: %w", err)
 	}

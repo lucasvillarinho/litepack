@@ -13,11 +13,11 @@ import (
 
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
-	db            *sql.DB               // The database handle.
-	url           string                // The URL of the cache database.
-	clearInterval schedule.ScheduleTime // The clear interval for expired cache entries.
-	timezone      *time.Location        // The timezone for the cache.
-	scheduler     schedule.Scheduler    // The scheduler for background cache operations.
+	scheduler     schedule.Scheduler
+	db            *sql.DB
+	timezone      *time.Location
+	url           string
+	clearInterval schedule.ScheduleTime
 }
 
 // CacheOption is a function that configures a cache instance.
@@ -86,7 +86,6 @@ func NewCache(url string, opts ...CacheOption) (*cache, error) {
 	go c.scheduler.Task(schedule.EveryMinute, c.timezone, c.clearExpiredItems)
 
 	return c, nil
-
 }
 
 // Set sets a key-value pair in the cache with the given TTL.
@@ -126,7 +125,6 @@ func (ch *cache) Get(key string) ([]byte, error) {
 	err := ch.db.
 		QueryRow(`SELECT value, expires_at FROM cache WHERE key = ?;`, key).
 		Scan(&value, &expiresAt)
-
 	if err != nil {
 		// Return nil if the key does not exist
 		if err == sql.ErrNoRows {
@@ -170,7 +168,6 @@ func (ch *cache) clearExpiredItems() error {
 	_, err := ch.db.Exec(`
 		DELETE FROM cache WHERE expires_at <= ?;
 	`, time.Now().In(ch.timezone))
-
 	if err != nil {
 		return fmt.Errorf("failed to clear expired cache entries: %w", err)
 	}

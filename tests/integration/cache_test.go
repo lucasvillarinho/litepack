@@ -32,7 +32,13 @@ func TestCache(t *testing.T) {
 		value, err := liteCache.Get("key")
 
 		assert.Nil(t, err, "Expected to get cache entry without error, but got: %v", err)
-		assert.Equal(t, "test", string(value), "Expected to get cache entry with value 'test', but got: %v", string(value))
+		assert.Equal(
+			t,
+			"test",
+			string(value),
+			"Expected to get cache entry with value 'test', but got: %v",
+			string(value),
+		)
 	})
 
 	t.Run("Should successfully delete cache entry ", func(t *testing.T) {
