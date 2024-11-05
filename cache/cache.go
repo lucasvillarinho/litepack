@@ -196,7 +196,7 @@ func (ch *cache) Destroy() error {
 	if err != nil {
 		return err
 	}
-	return db.DeleteDatabase(ch.db, ch.url)
+	return db.DeleteDatabase(ch.url)
 }
 
 // createCacheTable creates the cache table if it does not exist.

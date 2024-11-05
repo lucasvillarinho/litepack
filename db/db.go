@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 )
@@ -13,7 +12,7 @@ import (
 //
 // Returns:
 //   - error: an error if the operation failed
-func DeleteDatabase(db *sql.DB, path string) error {
+func DeleteDatabase(path string) error {
 	if err := os.Remove(path); err != nil {
 		return fmt.Errorf("delete database file: %w", err)
 	}
