@@ -20,18 +20,26 @@ type cache struct {
 	clearInterval schedule.ScheduleTime
 }
 
+type Cache interface {
+	Set(key string, value []byte, ttl time.Duration) error
+	Get(key string) ([]byte, error)
+	Del(key string) error
+	Close() error
+	Destroy() error
+}
+
 // CacheOption is a function that configures a cache instance.
-type CacheOption func(*cache)
+type Option func(*cache)
 
 // WithClearInterval sets a custom sync interval for the cache.
-func WithClearInterval(interval schedule.ScheduleTime) CacheOption {
+func WithClearInterval(interval schedule.ScheduleTime) Option {
 	return func(c *cache) {
 		c.clearInterval = interval
 	}
 }
 
 // WithTimezone sets a custom timezone for the cache.
-func WithTimezone(location *time.Location) CacheOption {
+func WithTimezone(location *time.Location) Option {
 	return func(c *cache) {
 		c.timezone = location
 	}
@@ -57,7 +65,7 @@ func WithTimezone(location *time.Location) CacheOption {
 // Returns:
 //   - *cache: the cache instance
 //   - error: an error if the operation failed
-func NewCache(url string, opts ...CacheOption) (*cache, error) {
+func NewCache(url string, opts ...Option) (Cache, error) {
 	c := &cache{
 		url:           fmt.Sprintf("%s_cache.db", url),
 		clearInterval: schedule.EveryMinute,
@@ -155,8 +163,8 @@ func (ch *cache) Get(key string) ([]byte, error) {
 //
 // Returns:
 //   - error: an error if the operation failed
-func (c *cache) Del(key string) error {
-	_, err := c.db.Exec(`DELETE FROM cache WHERE key = ?;`, key)
+func (ch *cache) Del(key string) error {
+	_, err := ch.db.Exec(`DELETE FROM cache WHERE key = ?;`, key)
 	return err
 }
 
