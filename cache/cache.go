@@ -7,17 +7,17 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/lucasvillarinho/litepack/db"
+	"github.com/lucasvillarinho/litepack/database"
 	"github.com/lucasvillarinho/litepack/schedule"
 )
 
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
-	scheduler     schedule.Scheduler
-	db            *sql.DB
-	timezone      *time.Location
-	url           string
-	clearInterval schedule.ScheduleTime
+	scheduler    schedule.Scheduler
+	db           *sql.DB
+	timezone     *time.Location
+	url          string
+	syncInterval schedule.ScheduleTime
 }
 
 type Cache interface {
@@ -34,7 +34,7 @@ type Option func(*cache)
 // WithClearInterval sets a custom sync interval for the cache.
 func WithClearInterval(interval schedule.ScheduleTime) Option {
 	return func(c *cache) {
-		c.clearInterval = interval
+		c.syncInterval = interval
 	}
 }
 
@@ -67,9 +67,9 @@ func WithTimezone(location *time.Location) Option {
 //   - error: an error if the operation failed
 func NewCache(url string, opts ...Option) (Cache, error) {
 	c := &cache{
-		url:           fmt.Sprintf("%s_cache.db", url),
-		clearInterval: schedule.EveryMinute,
-		timezone:      time.UTC,
+		url:          fmt.Sprintf("%s_cache.db", url),
+		syncInterval: schedule.EveryMinute,
+		timezone:     time.UTC,
 	}
 
 	for _, opt := range opts {
@@ -91,7 +91,7 @@ func NewCache(url string, opts ...Option) (Cache, error) {
 	c.scheduler = schedule.NewScheduler(c.timezone)
 
 	// // Start a background goroutine to clear expired cache entries
-	go c.scheduler.Task(schedule.EveryMinute, c.timezone, c.clearExpiredItems)
+	go c.scheduler.Task(schedule.EveryMinute, c.clearExpiredItems)
 
 	return c, nil
 }
@@ -196,7 +196,7 @@ func (ch *cache) Destroy() error {
 	if err != nil {
 		return err
 	}
-	return db.DeleteDatabase(ch.url)
+	return database.DeleteDatabase(ch.url)
 }
 
 // createCacheTable creates the cache table if it does not exist.

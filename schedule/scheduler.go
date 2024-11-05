@@ -21,7 +21,7 @@ const (
 
 // Scheduler is an interface for scheduling tasks.
 type Scheduler interface {
-	Task(scheduleTime ScheduleTime, timezone *time.Location, task func() error) error
+	Task(scheduleTime ScheduleTime, task func() error) error
 }
 
 // scheduler is a simple cron scheduler.
@@ -61,7 +61,6 @@ func NewScheduler(timezone *time.Location) Scheduler {
 //   - error: an error if the operation failed
 func (sc *scheduler) Task(
 	scheduleTime ScheduleTime,
-	timezone *time.Location,
 	task func() error,
 ) error {
 	_, err := sc.cron.AddFunc(string(scheduleTime), func() {
