@@ -3,6 +3,7 @@ package cache
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -17,7 +18,7 @@ type cache struct {
 	db           *sql.DB
 	timezone     *time.Location
 	url          string
-	syncInterval schedule.ScheduleTime
+	syncInterval schedule.Interval
 }
 
 type Cache interface {
@@ -32,7 +33,7 @@ type Cache interface {
 type Option func(*cache)
 
 // WithClearInterval sets a custom sync interval for the cache.
-func WithClearInterval(interval schedule.ScheduleTime) Option {
+func WithClearInterval(interval schedule.Interval) Option {
 	return func(c *cache) {
 		c.syncInterval = interval
 	}
@@ -82,16 +83,14 @@ func NewCache(url string, opts ...Option) (Cache, error) {
 	}
 	c.db = db
 
-	err = createCacheTable(db)
+	scheduler := schedule.NewScheduler(c.timezone)
+	c.scheduler = scheduler
+	startSyncClearByTTL(scheduler, c.clearExpiredItems)
+
+	err = SetupTable(c.db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cache table: %w", err)
+		return nil, fmt.Errorf("error setting up cache table: %w", err)
 	}
-
-	// Create a new scheduler with the cache timezone
-	c.scheduler = schedule.NewScheduler(c.timezone)
-
-	// // Start a background goroutine to clear expired cache entries
-	go c.scheduler.Task(schedule.EveryMinute, c.clearExpiredItems)
 
 	return c, nil
 }
@@ -229,14 +228,49 @@ func createCacheTable(db *sql.DB) error {
 	return nil
 }
 
-// setIndex creates an index on the cache table for the key column.
+// startSyncClearByTTL sets up a schedule to clear expired cache items.
+//
+// Parameters:
+//   - scheduler: the scheduler to use
+//   - clearExpiredItems: the function to clear expired cache items
+func startSyncClearByTTL(scheduler schedule.Scheduler, clearExpiredItems func() error) {
+	go func() {
+		err := scheduler.Task(schedule.EveryMinute, clearExpiredItems)
+		if err != nil {
+			slog.Error("Failed to schedule cache clear task", slog.String("error", err.Error()))
+		}
+	}()
+}
+
+// SetupTable creates the cache table with custom configuration.
 //
 // Parameters:
 //   - db: the database handle
 //
 // Returns:
 //   - error: an error if the operation failed
-func setIndex(db *sql.DB) error {
+func SetupTable(db *sql.DB) error {
+	err := createCacheTable(db)
+	if err != nil {
+		return fmt.Errorf("create cache table: %w", err)
+	}
+
+	err = createIndex(db)
+	if err != nil {
+		return fmt.Errorf("create index: %w", err)
+	}
+
+	return nil
+}
+
+// createIndex creates an index on the cache table for the key column.
+//
+// Parameters:
+//   - db: the database handle
+//
+// Returns:
+//   - error: an error if the operation failed
+func createIndex(db *sql.DB) error {
 	createIndexSQL := `CREATE INDEX IF NOT EXISTS idx_key ON cache (key);`
 	_, err := db.Exec(createIndexSQL)
 	if err != nil {

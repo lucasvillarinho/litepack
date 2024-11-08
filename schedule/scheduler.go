@@ -7,21 +7,21 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-// ScheduleTime represents a cron schedule time.
-type ScheduleTime string
+// Interval represents a cron schedule time.
+type Interval string
 
 const (
-	EveryMinute    ScheduleTime = "*/1 * * * *"  // Run every minute
-	Every5Minutes  ScheduleTime = "*/5 * * * *"  // Run every 5 minutes
-	Every10Minutes ScheduleTime = "*/10 * * * *" // Run every 10 minutes
-	Every15Minutes ScheduleTime = "*/15 * * * *" // Run every 15 minutes
-	Every30Minutes ScheduleTime = "*/30 * * * *" // Run every 30 minutes
-	EveryHour      ScheduleTime = "@hourly"      // Run every hour
+	EveryMinute    Interval = "*/1 * * * *"  // Run every minute
+	Every5Minutes  Interval = "*/5 * * * *"  // Run every 5 minutes
+	Every10Minutes Interval = "*/10 * * * *" // Run every 10 minutes
+	Every15Minutes Interval = "*/15 * * * *" // Run every 15 minutes
+	Every30Minutes Interval = "*/30 * * * *" // Run every 30 minutes
+	EveryHour      Interval = "@hourly"      // Run every hour
 )
 
 // Scheduler is an interface for scheduling tasks.
 type Scheduler interface {
-	Task(scheduleTime ScheduleTime, task func() error) error
+	Task(scheduleTime Interval, task func() error) error
 }
 
 // scheduler is a simple cron scheduler.
@@ -60,7 +60,7 @@ func NewScheduler(timezone *time.Location) Scheduler {
 // Returns:
 //   - error: an error if the operation failed
 func (sc *scheduler) Task(
-	scheduleTime ScheduleTime,
+	scheduleTime Interval,
 	task func() error,
 ) error {
 	_, err := sc.cron.AddFunc(string(scheduleTime), func() {
