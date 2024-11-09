@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	// Import the sqlite3 driver to register it with the database/sql package.
 	_ "github.com/mattn/go-sqlite3"
 )
 

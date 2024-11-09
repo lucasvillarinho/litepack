@@ -9,15 +9,16 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lucasvillarinho/litepack/database"
+	"github.com/lucasvillarinho/litepack/database/drivers"
 	"github.com/lucasvillarinho/litepack/schedule"
 )
 
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
 	scheduler    schedule.Scheduler
-	db           *sql.DB
+	driver       drivers.Driver
 	timezone     *time.Location
-	url          string
+	dsn          string
 	syncInterval schedule.Interval
 }
 
@@ -66,9 +67,9 @@ func WithTimezone(location *time.Location) Option {
 // Returns:
 //   - *cache: the cache instance
 //   - error: an error if the operation failed
-func NewCache(url string, opts ...Option) (Cache, error) {
+func NewCache(dsn string, opts ...Option) (Cache, error) {
 	c := &cache{
-		url:          fmt.Sprintf("%s_cache.db", url),
+		dsn:          fmt.Sprintf("%s_pack_cache.db", dsn),
 		syncInterval: schedule.EveryMinute,
 		timezone:     time.UTC,
 	}
@@ -77,17 +78,20 @@ func NewCache(url string, opts ...Option) (Cache, error) {
 		opt(c)
 	}
 
-	db, err := sql.Open("sqlite3", c.url)
+	driverFactory := drivers.NewDriverFactory()
+
+	driver, err := driverFactory.GetDriver(drivers.DriverMattn, c.dsn)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting driver: %w", err)
 	}
-	c.db = db
+
+	c.driver = driver
 
 	scheduler := schedule.NewScheduler(c.timezone)
 	c.scheduler = scheduler
 	startSyncClearByTTL(scheduler, c.clearExpiredItems)
 
-	err = SetupTable(c.db)
+	err = SetupTable(c.driver)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up cache table: %w", err)
 	}
@@ -107,7 +111,7 @@ func NewCache(url string, opts ...Option) (Cache, error) {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) Set(key string, value []byte, ttl time.Duration) error {
-	_, err := ch.db.Exec(
+	_, err := ch.driver.Execute(
 		`INSERT OR REPLACE INTO cache (key, value, expires_at) 
 		 VALUES (?, ?, ?);`,
 		key,
@@ -129,7 +133,7 @@ func (ch *cache) Get(key string) ([]byte, error) {
 	var value []byte
 	var expiresAt time.Time
 
-	err := ch.db.
+	err := ch.driver.
 		QueryRow(`SELECT value, expires_at FROM cache WHERE key = ?;`, key).
 		Scan(&value, &expiresAt)
 	if err != nil {
@@ -163,7 +167,7 @@ func (ch *cache) Get(key string) ([]byte, error) {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) Del(key string) error {
-	_, err := ch.db.Exec(`DELETE FROM cache WHERE key = ?;`, key)
+	_, err := ch.driver.Execute(`DELETE FROM cache WHERE key = ?;`, key)
 	return err
 }
 
@@ -172,7 +176,7 @@ func (ch *cache) Del(key string) error {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) clearExpiredItems() error {
-	_, err := ch.db.Exec(`
+	_, err := ch.driver.Execute(`
 		DELETE FROM cache WHERE expires_at <= ?;
 	`, time.Now().In(ch.timezone))
 	if err != nil {
@@ -184,7 +188,7 @@ func (ch *cache) clearExpiredItems() error {
 
 // Close closes the cache database connection.
 func (ch *cache) Close() error {
-	return ch.db.Close()
+	return ch.driver.Close()
 }
 
 // Destroy deletes the cache database file and closes the database connection.
@@ -195,7 +199,7 @@ func (ch *cache) Destroy() error {
 	if err != nil {
 		return err
 	}
-	return database.DeleteDatabase(ch.url)
+	return database.DeleteDatabase(ch.dsn)
 }
 
 // createCacheTable creates the cache table if it does not exist.
@@ -212,7 +216,7 @@ func (ch *cache) Destroy() error {
 //
 // Returns:
 //   - error: an error if the operation failed
-func createCacheTable(db *sql.DB) error {
+func createCacheTable(driver drivers.Driver) error {
 	createTableSQL := `
     CREATE TABLE IF NOT EXISTS cache (
         key TEXT PRIMARY KEY,
@@ -221,7 +225,7 @@ func createCacheTable(db *sql.DB) error {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
 
-	_, err := db.Exec(createTableSQL)
+	_, err := driver.Execute(createTableSQL)
 	if err != nil {
 		return fmt.Errorf("creating table: %w", err)
 	}
@@ -249,13 +253,13 @@ func startSyncClearByTTL(scheduler schedule.Scheduler, clearExpiredItems func() 
 //
 // Returns:
 //   - error: an error if the operation failed
-func SetupTable(db *sql.DB) error {
-	err := createCacheTable(db)
+func SetupTable(driver drivers.Driver) error {
+	err := createCacheTable(driver)
 	if err != nil {
 		return fmt.Errorf("create cache table: %w", err)
 	}
 
-	err = createIndex(db)
+	err = createIndex(driver)
 	if err != nil {
 		return fmt.Errorf("create index: %w", err)
 	}
@@ -270,9 +274,9 @@ func SetupTable(db *sql.DB) error {
 //
 // Returns:
 //   - error: an error if the operation failed
-func createIndex(db *sql.DB) error {
+func createIndex(driver drivers.Driver) error {
 	createIndexSQL := `CREATE INDEX IF NOT EXISTS idx_key ON cache (key);`
-	_, err := db.Exec(createIndexSQL)
+	_, err := driver.Execute(createIndexSQL)
 	if err != nil {
 		return fmt.Errorf("creating index: %w", err)
 	}

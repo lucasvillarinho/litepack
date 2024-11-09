@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	// Import the sqlite driver to register it with the database/sql package.
 	_ "modernc.org/sqlite"
 )
 
