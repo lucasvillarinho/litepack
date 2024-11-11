@@ -27,7 +27,6 @@ linters-settings:
     severity: warning             
     confidence: 0.8               
     rules:
-      - name: blank-imports
       - name: context-as-argument
       - name: context-keys-type
       - name: dot-imports
