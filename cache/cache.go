@@ -16,10 +16,12 @@ import (
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
 	scheduler    schedule.Scheduler
-	driver       drivers.Driver
+	engine       drivers.Driver
+	drive        drivers.DriverType
 	timezone     *time.Location
 	dsn          string
 	syncInterval schedule.Interval
+	cacheSize    int
 }
 
 type Cache interface {
@@ -72,29 +74,25 @@ func NewCache(dsn string, opts ...Option) (Cache, error) {
 		dsn:          fmt.Sprintf("%s_pack_cache.db", dsn),
 		syncInterval: schedule.EveryMinute,
 		timezone:     time.UTC,
+		cacheSize:    128 * 1024 * 1024, // 128 MB
+		drive:        drivers.DriverMattn,
 	}
 
 	for _, opt := range opts {
 		opt(c)
 	}
 
-	driverFactory := drivers.NewDriverFactory()
-
-	driver, err := driverFactory.GetDriver(drivers.DriverMattn, c.dsn)
+	err := c.setDriver()
 	if err != nil {
-		return nil, fmt.Errorf("error getting driver: %w", err)
+		return nil, fmt.Errorf("error setting driver: %w", err)
 	}
 
-	c.driver = driver
-
-	scheduler := schedule.NewScheduler(c.timezone)
-	c.scheduler = scheduler
-	startSyncClearByTTL(scheduler, c.clearExpiredItems)
-
-	err = SetupTable(c.driver)
+	err = c.SetupTable(c.engine)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up cache table: %w", err)
 	}
+
+	c.setupSyncClearByTTL()
 
 	return c, nil
 }
@@ -111,7 +109,7 @@ func NewCache(dsn string, opts ...Option) (Cache, error) {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) Set(key string, value []byte, ttl time.Duration) error {
-	_, err := ch.driver.Execute(
+	_, err := ch.engine.Execute(
 		`INSERT OR REPLACE INTO cache (key, value, expires_at) 
 		 VALUES (?, ?, ?);`,
 		key,
@@ -133,7 +131,7 @@ func (ch *cache) Get(key string) ([]byte, error) {
 	var value []byte
 	var expiresAt time.Time
 
-	err := ch.driver.
+	err := ch.engine.
 		QueryRow(`SELECT value, expires_at FROM cache WHERE key = ?;`, key).
 		Scan(&value, &expiresAt)
 	if err != nil {
@@ -167,7 +165,7 @@ func (ch *cache) Get(key string) ([]byte, error) {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) Del(key string) error {
-	_, err := ch.driver.Execute(`DELETE FROM cache WHERE key = ?;`, key)
+	_, err := ch.engine.Execute(`DELETE FROM cache WHERE key = ?;`, key)
 	return err
 }
 
@@ -176,7 +174,7 @@ func (ch *cache) Del(key string) error {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) clearExpiredItems() error {
-	_, err := ch.driver.Execute(`
+	_, err := ch.engine.Execute(`
 		DELETE FROM cache WHERE expires_at <= ?;
 	`, time.Now().In(ch.timezone))
 	if err != nil {
@@ -188,7 +186,7 @@ func (ch *cache) clearExpiredItems() error {
 
 // Close closes the cache database connection.
 func (ch *cache) Close() error {
-	return ch.driver.Close()
+	return ch.engine.Close()
 }
 
 // Destroy deletes the cache database file and closes the database connection.
@@ -200,36 +198,6 @@ func (ch *cache) Destroy() error {
 		return err
 	}
 	return database.DeleteDatabase(ch.dsn)
-}
-
-// createCacheTable creates the cache table if it does not exist.
-//
-// The table has the following schema:
-//
-//   - key: TEXT PRIMARY KEY
-//   - value: BLOB
-//   - expires_at: TIMESTAMP
-//   - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//
-// Parameters:
-//   - db: the database handle
-//
-// Returns:
-//   - error: an error if the operation failed
-func createCacheTable(driver drivers.Driver) error {
-	createTableSQL := `
-    CREATE TABLE IF NOT EXISTS cache (
-        key TEXT PRIMARY KEY,
-        value BLOB,
-        expires_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );`
-
-	_, err := driver.Execute(createTableSQL)
-	if err != nil {
-		return fmt.Errorf("creating table: %w", err)
-	}
-	return nil
 }
 
 // startSyncClearByTTL sets up a schedule to clear expired cache items.
@@ -253,22 +221,57 @@ func startSyncClearByTTL(scheduler schedule.Scheduler, clearExpiredItems func() 
 //
 // Returns:
 //   - error: an error if the operation failed
-func SetupTable(driver drivers.Driver) error {
-	err := createCacheTable(driver)
+func (ch *cache) SetupTable(driver drivers.Driver) error {
+	err := ch.createCacheTable()
 	if err != nil {
 		return err
 	}
 
-	err = createIndex(driver)
+	err = ch.createIndex()
 	if err != nil {
 		return err
 	}
 
-	err = enableWalMode(driver)
+	err = ch.setWalMode()
 	if err != nil {
 		return err
 	}
 
+	err = ch.setCacheSize()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// createCacheTable creates the cache table if it does not exist.
+//
+// The table has the following schema:
+//
+//   - key: TEXT PRIMARY KEY
+//   - value: BLOB
+//   - expires_at: TIMESTAMP
+//   - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+//
+// Parameters:
+//   - db: the database handle
+//
+// Returns:
+//   - error: an error if the operation failed
+func (ch *cache) createCacheTable() error {
+	createTableSQL := `
+    CREATE TABLE IF NOT EXISTS cache (
+        key TEXT PRIMARY KEY,
+        value BLOB,
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`
+
+	_, err := ch.engine.Execute(createTableSQL)
+	if err != nil {
+		return fmt.Errorf("creating table: %w", err)
+	}
 	return nil
 }
 
@@ -279,16 +282,16 @@ func SetupTable(driver drivers.Driver) error {
 //
 // Returns:
 //   - error: an error if the operation failed
-func createIndex(driver drivers.Driver) error {
+func (ch *cache) createIndex() error {
 	createIndexSQL := `CREATE INDEX IF NOT EXISTS idx_key ON cache (key);`
-	_, err := driver.Execute(createIndexSQL)
+	_, err := ch.engine.Execute(createIndexSQL)
 	if err != nil {
 		return fmt.Errorf("creating index: %w", err)
 	}
 	return nil
 }
 
-// enableWalMode enables Write-Ahead Logging (WAL) mode for the database.
+// setWalMode enables Write-Ahead Logging (WAL) mode for the database.
 // WAL mode allows for concurrent reads and writes to the database.
 // WAL mode is recommended for high-traffic applications.
 //
@@ -297,10 +300,60 @@ func createIndex(driver drivers.Driver) error {
 //
 // Returns:
 //   - error: an error if the operation failed
-func enableWalMode(driver drivers.Driver) error {
-	_, err := driver.Execute("PRAGMA journal_mode=WAL;")
+func (ch *cache) setWalMode() error {
+	_, err := ch.engine.Execute("PRAGMA journal_mode=WAL;")
 	if err != nil {
 		return fmt.Errorf("enabling WAL mode: %w", err)
 	}
 	return nil
+}
+
+// setDriver sets the driver for the cache.
+// The driver is used to interact with the SQLite database.
+//
+// Configuration defaults:
+//   - driver: mattn
+//
+// Returns:
+//   - error: an error if the operation failed
+func (ch *cache) setDriver() error {
+	driverFactory := drivers.NewDriverFactory()
+
+	engine, err := driverFactory.GetDriver(ch.drive, ch.dsn)
+	if err != nil {
+		return fmt.Errorf("error getting driver: %w", err)
+	}
+	ch.engine = engine
+
+	return nil
+}
+
+// setCacheSize sets the cache size for the database.
+// The cache size is set in pages, with each page being 4096 bytes.
+// The default cache size is 128 MB.
+//
+// This cache is used by SQLite to store data pages in memory,
+// minimizing the need for direct disk access.
+//
+// Returns:
+//
+//   - error: an error if the operation failed
+func (ch *cache) setCacheSize() error {
+	pages := ch.cacheSize / 4096
+
+	query := fmt.Sprintf("PRAGMA cache_size = %d;", pages)
+
+	_, err := ch.engine.Execute(query)
+	if err != nil {
+		return fmt.Errorf("setting cache size: %w", err)
+	}
+
+	return nil
+}
+
+// setupSyncClearByTTL sets up a schedule to clear expired cache items.
+func (ch *cache) setupSyncClearByTTL() {
+	scheduler := schedule.NewScheduler(ch.timezone)
+	ch.scheduler = scheduler
+	startSyncClearByTTL(scheduler, ch.clearExpiredItems)
 }
