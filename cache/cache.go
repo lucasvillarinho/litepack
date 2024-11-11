@@ -256,12 +256,17 @@ func startSyncClearByTTL(scheduler schedule.Scheduler, clearExpiredItems func() 
 func SetupTable(driver drivers.Driver) error {
 	err := createCacheTable(driver)
 	if err != nil {
-		return fmt.Errorf("create cache table: %w", err)
+		return err
 	}
 
 	err = createIndex(driver)
 	if err != nil {
-		return fmt.Errorf("create index: %w", err)
+		return err
+	}
+
+	err = enableWalMode(driver)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -279,6 +284,23 @@ func createIndex(driver drivers.Driver) error {
 	_, err := driver.Execute(createIndexSQL)
 	if err != nil {
 		return fmt.Errorf("creating index: %w", err)
+	}
+	return nil
+}
+
+// enableWalMode enables Write-Ahead Logging (WAL) mode for the database.
+// WAL mode allows for concurrent reads and writes to the database.
+// WAL mode is recommended for high-traffic applications.
+//
+// Parameters:
+//   - db: the database handle
+//
+// Returns:
+//   - error: an error if the operation failed
+func enableWalMode(driver drivers.Driver) error {
+	_, err := driver.Execute("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		return fmt.Errorf("enabling WAL mode: %w", err)
 	}
 	return nil
 }
