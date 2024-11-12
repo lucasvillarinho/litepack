@@ -22,6 +22,8 @@ const (
 // Scheduler is an interface for scheduling tasks.
 type Scheduler interface {
 	Task(scheduleTime Interval, task func() error) error
+	GetTimezone() *time.Location
+	Stop()
 }
 
 // scheduler is a simple cron scheduler.
@@ -43,14 +45,9 @@ func NewScheduler(timezone *time.Location) (Scheduler, error) {
 		return nil, fmt.Errorf("timezone cannot be nil")
 	}
 
-	cronInstance := cron.New(cron.WithLocation(timezone))
-	if cronInstance == nil {
-		return nil, fmt.Errorf("failed to initialize cron scheduler")
-	}
-
 	schedule := &scheduler{
 		timezone: timezone,
-		cron:     cronInstance,
+		cron:     cron.New(cron.WithLocation(timezone)),
 	}
 
 	schedule.cron.Start()
@@ -84,7 +81,17 @@ func (sc *scheduler) Task(
 	return nil
 }
 
+// GetTimezone returns the timezone of the scheduler.
+func (sc *scheduler) GetTimezone() *time.Location {
+	return sc.timezone
+}
+
 // Stop stops the scheduler.
 func (sc *scheduler) Stop() {
 	sc.cron.Stop()
+}
+
+// HasTasks returns true if there are tasks scheduled.
+func (sc *scheduler) HasTasks() bool {
+	return len(sc.cron.Entries()) > 0
 }
