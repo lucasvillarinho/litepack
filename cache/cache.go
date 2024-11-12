@@ -69,9 +69,9 @@ func WithTimezone(location *time.Location) Option {
 // Returns:
 //   - *cache: the cache instance
 //   - error: an error if the operation failed
-func NewCache(dsn string, opts ...Option) (Cache, error) {
+func NewCache(path string, opts ...Option) (Cache, error) {
 	c := &cache{
-		dsn:          fmt.Sprintf("%s_pack_cache.db", dsn),
+		dsn:          fmt.Sprintf("%s_lpack_cache.db", path),
 		syncInterval: schedule.EveryMinute,
 		timezone:     time.UTC,
 		cacheSize:    128 * 1024 * 1024, // 128 MB
@@ -87,12 +87,15 @@ func NewCache(dsn string, opts ...Option) (Cache, error) {
 		return nil, fmt.Errorf("error setting driver: %w", err)
 	}
 
-	err = c.SetupTable(c.engine)
+	err = c.setupTable()
 	if err != nil {
 		return nil, fmt.Errorf("error setting up cache table: %w", err)
 	}
 
-	c.setupSyncClearByTTL()
+	err = c.setupSyncClearByTTL()
+	if err != nil {
+		return nil, fmt.Errorf("error setting up sync clear by TTL: %w", err)
+	}
 
 	return c, nil
 }
@@ -129,28 +132,21 @@ func (ch *cache) Set(key string, value []byte, ttl time.Duration) error {
 //   - error: an error if the operation failed
 func (ch *cache) Get(key string) ([]byte, error) {
 	var value []byte
-	var expiresAt time.Time
 
+	// Query only non-expired records
 	err := ch.engine.
-		QueryRow(`SELECT value, expires_at FROM cache WHERE key = ?;`, key).
-		Scan(&value, &expiresAt)
+		QueryRow(
+			`SELECT value FROM cache WHERE key = ? AND expires_at > ?;`,
+			key,
+			time.Now().In(ch.timezone),
+		).
+		Scan(&value)
 	if err != nil {
 		// Return nil if the key does not exist
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-
 		return nil, err
-	}
-
-	// Check if the entry has expired
-	// If the entry has expired, remove it from the cache
-	if time.Now().In(ch.timezone).After(expiresAt) {
-		if delErr := ch.Del(key); delErr != nil {
-			return nil, delErr
-		}
-		// Return nil if expired
-		return nil, nil
 	}
 
 	return value, nil
@@ -166,6 +162,10 @@ func (ch *cache) Get(key string) ([]byte, error) {
 //   - error: an error if the operation failed
 func (ch *cache) Del(key string) error {
 	_, err := ch.engine.Execute(`DELETE FROM cache WHERE key = ?;`, key)
+	if err != nil {
+		fmt.Println("error deleting key", err)
+	}
+
 	return err
 }
 
@@ -178,7 +178,7 @@ func (ch *cache) clearExpiredItems() error {
 		DELETE FROM cache WHERE expires_at <= ?;
 	`, time.Now().In(ch.timezone))
 	if err != nil {
-		return fmt.Errorf("failed to clear expired cache entries: %w", err)
+		return fmt.Errorf("clearing expired items: %w", err)
 	}
 
 	return nil
@@ -214,37 +214,6 @@ func startSyncClearByTTL(scheduler schedule.Scheduler, clearExpiredItems func() 
 	}()
 }
 
-// SetupTable creates the cache table with custom configuration.
-//
-// Parameters:
-//   - db: the database handle
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) SetupTable(driver drivers.Driver) error {
-	err := ch.createCacheTable()
-	if err != nil {
-		return err
-	}
-
-	err = ch.createIndex()
-	if err != nil {
-		return err
-	}
-
-	err = ch.setWalMode()
-	if err != nil {
-		return err
-	}
-
-	err = ch.setCacheSize()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // createCacheTable creates the cache table if it does not exist.
 //
 // The table has the following schema:
@@ -275,39 +244,6 @@ func (ch *cache) createCacheTable() error {
 	return nil
 }
 
-// createIndex creates an index on the cache table for the key column.
-//
-// Parameters:
-//   - db: the database handle
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) createIndex() error {
-	createIndexSQL := `CREATE INDEX IF NOT EXISTS idx_key ON cache (key);`
-	_, err := ch.engine.Execute(createIndexSQL)
-	if err != nil {
-		return fmt.Errorf("creating index: %w", err)
-	}
-	return nil
-}
-
-// setWalMode enables Write-Ahead Logging (WAL) mode for the database.
-// WAL mode allows for concurrent reads and writes to the database.
-// WAL mode is recommended for high-traffic applications.
-//
-// Parameters:
-//   - db: the database handle
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) setWalMode() error {
-	_, err := ch.engine.Execute("PRAGMA journal_mode=WAL;")
-	if err != nil {
-		return fmt.Errorf("enabling WAL mode: %w", err)
-	}
-	return nil
-}
-
 // setDriver sets the driver for the cache.
 // The driver is used to interact with the SQLite database.
 //
@@ -325,6 +261,55 @@ func (ch *cache) setDriver() error {
 	}
 	ch.engine = engine
 
+	return nil
+}
+
+// SetupTable creates the cache table with custom configuration.
+
+// Returns:
+//   - error: an error if the operation failed
+func (ch *cache) setupTable() error {
+	err := ch.createCacheTable()
+	if err != nil {
+		return err
+	}
+
+	err = ch.createIndex()
+	if err != nil {
+		return err
+	}
+
+	err = ch.setWalMode()
+	if err != nil {
+		return err
+	}
+
+	err = ch.setCacheSize()
+	if err != nil {
+		return err
+	}
+
+	err = ch.setSynchronousMode()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// createIndex creates an index on the cache table for the key column.
+//
+// Parameters:
+//   - db: the database handle
+//
+// Returns:
+//   - error: an error if the operation failed
+func (ch *cache) createIndex() error {
+	createIndexSQL := `CREATE INDEX IF NOT EXISTS idx_key ON cache (key);`
+	_, err := ch.engine.Execute(createIndexSQL)
+	if err != nil {
+		return fmt.Errorf("creating index: %w", err)
+	}
 	return nil
 }
 
@@ -351,9 +336,42 @@ func (ch *cache) setCacheSize() error {
 	return nil
 }
 
+// setWalMode enables Write-Ahead Logging (WAL) mode for the database.
+// WAL mode allows for concurrent reads and writes to the database.
+// WAL mode is recommended for high-traffic applications.
+//
+// Parameters:
+//   - db: the database handle
+//
+// Returns:
+//   - error: an error if the operation failed
+func (ch *cache) setWalMode() error {
+	_, err := ch.engine.Execute("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		return fmt.Errorf("enabling WAL mode: %w", err)
+	}
+	return nil
+}
+
+// setSynchronousMode sets the synchronous mode for the database.
+// Synchronous mode determines how often the database writes to disk.
+func (ch *cache) setSynchronousMode() error {
+	_, err := ch.engine.Execute("PRAGMA synchronous = NORMAL;")
+	if err != nil {
+		return fmt.Errorf("setting synchronous mode: %w", err)
+	}
+	return nil
+}
+
 // setupSyncClearByTTL sets up a schedule to clear expired cache items.
-func (ch *cache) setupSyncClearByTTL() {
-	scheduler := schedule.NewScheduler(ch.timezone)
+//
+// Returns:
+//
+//   - error: an error if the operation failed
+func (ch *cache) setupSyncClearByTTL() error {
+	scheduler, err := schedule.NewScheduler(ch.timezone)
 	ch.scheduler = scheduler
 	startSyncClearByTTL(scheduler, ch.clearExpiredItems)
+
+	return err
 }

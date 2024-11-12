@@ -37,16 +37,25 @@ type scheduler struct {
 //
 // Returns:
 //   - Scheduler: the scheduler instance
-func NewScheduler(timezone *time.Location) Scheduler {
-	schedule := &scheduler{
-		timezone: timezone,
-		cron:     cron.New(cron.WithLocation(timezone)),
+//   - error: an error if the operation failed
+func NewScheduler(timezone *time.Location) (Scheduler, error) {
+	if timezone == nil {
+		return nil, fmt.Errorf("timezone cannot be nil")
 	}
 
-	// Start the scheduler
+	cronInstance := cron.New(cron.WithLocation(timezone))
+	if cronInstance == nil {
+		return nil, fmt.Errorf("failed to initialize cron scheduler")
+	}
+
+	schedule := &scheduler{
+		timezone: timezone,
+		cron:     cronInstance,
+	}
+
 	schedule.cron.Start()
 
-	return schedule
+	return schedule, nil
 }
 
 // Task schedules a task to run at a given schedule.
