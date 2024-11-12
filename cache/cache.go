@@ -51,7 +51,7 @@ func WithTimezone(location *time.Location) Option {
 
 // NewCache creates a new cache instance with the given name and applies any provided options.
 // The cache is backed by an SQLite database.
-// The name is used to create a database file with the format "<name>_pack_cache.db".
+// The path is used to create a database file with the format "<name>_lpack_cache.db".
 // The cache is automatically created if it does not exist.
 //
 // Parameters:
