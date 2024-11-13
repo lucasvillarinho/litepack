@@ -27,10 +27,17 @@ type Scheduler interface {
 	HasTasks() bool
 }
 
+type cronScheduler interface {
+	AddFunc(spec string, cmd func()) (int, error)
+	Start()
+	Stop()
+	Entries() []cron.Entry
+}
+
 // scheduler is a simple cron scheduler.
 type scheduler struct {
 	timezone *time.Location
-	cron     *cron.Cron
+	cron     cronScheduler
 }
 
 // NewScheduler creates a new scheduler instance with the given timezone.
@@ -46,12 +53,12 @@ func NewScheduler(timezone *time.Location) (Scheduler, error) {
 		return nil, fmt.Errorf("timezone cannot be nil")
 	}
 
+	cron := &cronAdapter{cron: cron.New(cron.WithLocation(timezone))}
+
 	schedule := &scheduler{
 		timezone: timezone,
-		cron:     cron.New(cron.WithLocation(timezone)),
+		cron:     cron,
 	}
-
-	schedule.cron.Start()
 
 	return schedule, nil
 }
@@ -66,10 +73,7 @@ func NewScheduler(timezone *time.Location) (Scheduler, error) {
 //
 // Returns:
 //   - error: an error if the operation failed
-func (sc *scheduler) Task(
-	scheduleTime Interval,
-	task func() error,
-) error {
+func (sc *scheduler) Task(scheduleTime Interval, task func() error) error {
 	_, err := sc.cron.AddFunc(string(scheduleTime), func() {
 		if err := task(); err != nil {
 			fmt.Printf("Error executing scheduled task: %v\n", err)
@@ -85,6 +89,11 @@ func (sc *scheduler) Task(
 // GetTimezone returns the timezone of the scheduler.
 func (sc *scheduler) GetTimezone() *time.Location {
 	return sc.timezone
+}
+
+// Start starts the scheduler.
+func (sc *scheduler) Start() {
+	sc.cron.Start()
 }
 
 // Stop stops the scheduler.
