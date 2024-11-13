@@ -53,11 +53,9 @@ func NewScheduler(timezone *time.Location) (Scheduler, error) {
 		return nil, fmt.Errorf("timezone cannot be nil")
 	}
 
-	cron := &cronAdapter{cron: cron.New(cron.WithLocation(timezone))}
-
 	schedule := &scheduler{
 		timezone: timezone,
-		cron:     cron,
+		cron:     &cronAdapter{cron: cron.New(cron.WithLocation(timezone))},
 	}
 
 	return schedule, nil
