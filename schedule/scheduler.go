@@ -24,6 +24,7 @@ type Scheduler interface {
 	Task(scheduleTime Interval, task func() error) error
 	GetTimezone() *time.Location
 	Stop()
+	HasTasks() bool
 }
 
 // scheduler is a simple cron scheduler.
