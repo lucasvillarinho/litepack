@@ -18,3 +18,8 @@ lint: build ## Run lint
 	@echo "Running linter..."
 	@golangci-lint run ./...
 	@echo "Linter passed successfully"
+
+.PHONY: test
+test:  ## Run tests
+	@go test -v -coverprofile=rawcover.out -json $$(go list ./...) 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests,empty-packages
+	@go test

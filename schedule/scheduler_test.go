@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/robfig/cron/v3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -79,5 +80,57 @@ func TestTask(t *testing.T) {
 		assert.Error(t, err, "Expected an error when AddFunc fails")
 		assert.EqualError(t, err, "failed to schedule task: mock AddFunc error")
 		assert.Len(t, mock.addFuncCalls, 0, "Expected no tasks to be scheduled when AddFunc fails")
+	})
+}
+
+func TestStart(t *testing.T) {
+	t.Run("should call Start on cron", func(t *testing.T) {
+		mock := &mockCron{}
+		scheduler := &scheduler{
+			cron: mock,
+		}
+		defer scheduler.Stop()
+
+		scheduler.Start()
+	})
+}
+
+func TestStop(t *testing.T) {
+	t.Run("should call Stop on cron", func(t *testing.T) {
+		mock := &mockCron{}
+		scheduler := &scheduler{
+			cron: mock,
+		}
+
+		scheduler.Start()
+		scheduler.Stop()
+
+	})
+}
+
+func TestHasTasks(t *testing.T) {
+	t.Run("should return true when tasks exist", func(t *testing.T) {
+		mock := &mockCron{
+			entries: []cron.Entry{
+				{ID: 1},
+				{ID: 2},
+			},
+		}
+		scheduler := &scheduler{
+			cron: mock,
+		}
+
+		assert.True(t, scheduler.HasTasks(), "Expected HasTasks to return true when tasks exist")
+	})
+
+	t.Run("should return false when no tasks exist", func(t *testing.T) {
+		mock := &mockCron{
+			entries: []cron.Entry{},
+		}
+		scheduler := &scheduler{
+			cron: mock,
+		}
+
+		assert.False(t, scheduler.HasTasks(), "Expected HasTasks to return false when no tasks exist")
 	})
 }

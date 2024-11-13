@@ -3,6 +3,7 @@ package schedule
 import "github.com/robfig/cron/v3"
 
 type mockCron struct {
+	entries      []cron.Entry
 	addFuncErr   error
 	addFuncCalls []struct {
 		cmd  func()
@@ -22,6 +23,8 @@ func (m *mockCron) AddFunc(spec string, cmd func()) (int, error) {
 	return 1, m.addFuncErr
 }
 
-func (m *mockCron) Start()                {}
-func (m *mockCron) Stop()                 {}
-func (m *mockCron) Entries() []cron.Entry { return nil }
+func (m *mockCron) Start() {}
+func (m *mockCron) Stop()  {}
+func (m *mockCron) Entries() []cron.Entry {
+	return m.entries
+}
