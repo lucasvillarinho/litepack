@@ -1,6 +1,10 @@
 package cache
 
-import "github.com/lucasvillarinho/litepack/schedule"
+import (
+	"fmt"
+
+	"github.com/lucasvillarinho/litepack/schedule"
+)
 
 // startSyncClearByTTL starts the cache cleaner task.
 //
@@ -21,7 +25,7 @@ func createTaskCleaner(scheduler schedule.Scheduler, clearExpiredItems func() er
 	go func() {
 		err := scheduler.Task(schedule.EveryMinute, clearExpiredItems)
 		if err != nil {
-			// Handle logging here
+			fmt.Printf("Error scheduling task: %v\n", err)
 		}
 	}()
 }
