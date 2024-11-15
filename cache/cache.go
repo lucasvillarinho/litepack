@@ -92,9 +92,9 @@ func NewCache(path string, opts ...Option) (Cache, error) {
 func (ch *cache) Set(key string, value []byte, ttl time.Duration) error {
 	query, args, err := squirrel.
 		Insert("cache").
-		Columns("key", "value", "expires_at").
-		Values(key, value, time.Now().Add(ttl).In(ch.timezone)).
-		Suffix("ON CONFLICT(key) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at").
+		Columns("key", "value", "expires_at", "last_accessed_at").
+		Values(key, value, time.Now().Add(ttl).In(ch.timezone), time.Now().In(ch.timezone)).
+		Suffix("ON CONFLICT(key) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at").
 		ToSql()
 	if err != nil {
 		return fmt.Errorf("error building query: %w", err)
@@ -105,7 +105,7 @@ func (ch *cache) Set(key string, value []byte, ttl time.Duration) error {
 		return fmt.Errorf("error executing query: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 // Get retrieves a value from the cache by key.
@@ -139,6 +139,11 @@ func (ch *cache) Get(key string) ([]byte, error) {
 		return nil, fmt.Errorf("getting value: %w", err)
 	}
 
+	err = ch.updateLastAccessedAt(key)
+	if err != nil {
+		fmt.Printf("error updating last accessed at: %v\n", err)
+	}
+
 	return value, nil
 }
 
@@ -165,6 +170,99 @@ func (ch *cache) Del(key string) error {
 		return fmt.Errorf("deleting key: %w", err)
 	}
 	return err
+}
+
+// updateLastAccessedAt updates the last accessed at timestamp for a cache entry.
+func (ch *cache) updateLastAccessedAt(key string) error {
+	updateQuery, updateArgs, err := squirrel.
+		Update("cache").
+		Set("last_accessed_at", time.Now().In(ch.timezone)).
+		Where(squirrel.Eq{"key": key}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("building update query: %w", err)
+	}
+
+	_, err = ch.engine.Execute(updateQuery, updateArgs...)
+	if err != nil {
+		return fmt.Errorf("updating last_accessed_at: %w", err)
+	}
+
+	return nil
+}
+
+// Purge deletes a percentage of the cache entries.
+// The entries are deleted in ascending order of last accessed at timestamp (LRU).
+// The percentage must be between 0 and 1.
+//
+// Parameters:
+//   - percent: the percentage of entries to delete
+//
+// Returns:
+//   - error: an error if the operation failed
+func (ch *cache) Purge(percent float64) error {
+	if percent < 0 || percent > 1 {
+		return fmt.Errorf("invalid percentage: %f", percent)
+	}
+
+	var totalEntries int
+	countQuery, args, err := squirrel.
+		Select("COUNT(*)").
+		From("cache").
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("building count query: %w", err)
+	}
+
+	err = ch.engine.QueryRow(countQuery, args...).Scan(&totalEntries)
+	if err != nil {
+		return fmt.Errorf("failed to count entries: %w", err)
+	}
+
+	totalEntriesToDelete := int(float64(totalEntries) * percent)
+	if totalEntriesToDelete == 0 {
+		return nil
+	}
+
+	subQuery, subArgs, err := squirrel.
+		Select("key").
+		From("cache").
+		OrderBy("last_accessed_at ASC").
+		Limit(uint64(totalEntriesToDelete)).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("building subquery: %w", err)
+	}
+
+	deleteQuery, deleteArgs, err := squirrel.
+		Delete("cache").
+		Where(fmt.Sprintf("key IN (%s)", subQuery), subArgs...).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("building delete query: %w", err)
+	}
+
+	_, err = ch.engine.Execute(deleteQuery, deleteArgs...)
+	if err != nil {
+		return fmt.Errorf("executing purge query: %w", err)
+	}
+
+	return nil
+}
+
+// Vacuum reclaims unused database space.
+//
+// Returns:
+//
+//   - error: an error if the operation failed
+//
+// WARNING: This operation can be slow for large databases.
+func (ch *cache) Vacuum() error {
+	_, err := ch.engine.Execute("VACUUM;")
+	if err != nil {
+		return fmt.Errorf("error vacuuming: %w", err)
+	}
+	return nil
 }
 
 // clearExpiredItems Deletes all cache entries that have expired.

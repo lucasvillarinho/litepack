@@ -116,6 +116,7 @@ func setCacheSize(ch *cache) error {
 //   - value: BLOB
 //   - expires_at: TIMESTAMP
 //   - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+//   - last_accessed_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 //
 // Parameters:
 //   - ch: the cache handle
@@ -128,7 +129,7 @@ func createCacheTable(ch *cache) error {
         key TEXT PRIMARY KEY,
         value BLOB,
         expires_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        last_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
 
 	_, err := ch.engine.Execute(createTableSQL)

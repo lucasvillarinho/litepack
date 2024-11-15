@@ -8,6 +8,7 @@ import (
 
 	"github.com/lucasvillarinho/litepack/database/drivers"
 	mocks "github.com/lucasvillarinho/litepack/database/drivers/mocks"
+	"github.com/lucasvillarinho/litepack/internal/helpers"
 )
 
 func TestSetWalMode(t *testing.T) {
@@ -164,10 +165,10 @@ func TestCreateCacheTable(t *testing.T) {
         key TEXT PRIMARY KEY,
         value BLOB,
         expires_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	    last_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
 		assert.NoError(t, err)
-		assert.Equal(t, expectedQuery, mock.ExecutedQuery)
+		assert.Equal(t, helpers.NormalizeQuery(expectedQuery), helpers.NormalizeQuery(mock.ExecutedQuery))
 	})
 
 	t.Run("should return an error when creating cache table fails", func(t *testing.T) {
@@ -185,10 +186,10 @@ func TestCreateCacheTable(t *testing.T) {
         key TEXT PRIMARY KEY,
         value BLOB,
         expires_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        last_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
 		assert.Error(t, err)
-		assert.Equal(t, expectedQuery, mock.ExecutedQuery)
+		assert.Equal(t, helpers.NormalizeQuery(expectedQuery), helpers.NormalizeQuery(mock.ExecutedQuery))
 		assert.EqualError(t, err, "creating table: mock error")
 	})
 }
