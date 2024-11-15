@@ -104,7 +104,6 @@ func TestStop(t *testing.T) {
 
 		scheduler.Start()
 		scheduler.Stop()
-
 	})
 }
 
@@ -131,6 +130,10 @@ func TestHasTasks(t *testing.T) {
 			cron: mock,
 		}
 
-		assert.False(t, scheduler.HasTasks(), "Expected HasTasks to return false when no tasks exist")
+		assert.False(
+			t,
+			scheduler.HasTasks(),
+			"Expected HasTasks to return false when no tasks exist",
+		)
 	})
 }

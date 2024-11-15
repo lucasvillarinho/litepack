@@ -10,7 +10,6 @@ import (
 )
 
 func TestSetWalMode(t *testing.T) {
-
 	t.Run("should enable WAL mode successfully", func(t *testing.T) {
 		mock := &drivers.Mock{}
 		ch := &cache{
@@ -34,12 +33,16 @@ func TestSetWalMode(t *testing.T) {
 		err := setWalMode(ch)
 
 		assert.Error(t, err, "Expected an error when enabling WAL mode")
-		assert.EqualError(t, err, "enabling WAL mode: mock error", "Expected error message to match")
+		assert.EqualError(
+			t,
+			err,
+			"enabling WAL mode: mock error",
+			"Expected error message to match",
+		)
 	})
 }
 
 func TestSetSynchronousMode(t *testing.T) {
-
 	t.Run("should set synchronous mode successfully", func(t *testing.T) {
 		mock := &drivers.Mock{}
 		ch := &cache{
@@ -49,7 +52,12 @@ func TestSetSynchronousMode(t *testing.T) {
 		err := setSynchronousMode(ch)
 
 		assert.NoError(t, err, "Expected no error when setting synchronous mode")
-		assert.Equal(t, "PRAGMA synchronous = NORMAL;", mock.ExecutedQuery, "Expected query to match")
+		assert.Equal(
+			t,
+			"PRAGMA synchronous = NORMAL;",
+			mock.ExecutedQuery,
+			"Expected query to match",
+		)
 	})
 
 	t.Run("should return an error when setting synchronous mode fails", func(t *testing.T) {
@@ -63,12 +71,16 @@ func TestSetSynchronousMode(t *testing.T) {
 		err := setSynchronousMode(ch)
 
 		assert.Error(t, err, "Expected an error when setting synchronous mode")
-		assert.EqualError(t, err, "setting synchronous mode: mock error", "Expected error message to match")
+		assert.EqualError(
+			t,
+			err,
+			"setting synchronous mode: mock error",
+			"Expected error message to match",
+		)
 	})
 }
 
 func TestCreateIndex(t *testing.T) {
-
 	t.Run("should create index successfully", func(t *testing.T) {
 		mock := &drivers.Mock{}
 		ch := &cache{
@@ -78,7 +90,12 @@ func TestCreateIndex(t *testing.T) {
 		err := createIndex(ch)
 
 		assert.NoError(t, err, "Expected no error when creating index")
-		assert.Equal(t, "CREATE INDEX IF NOT EXISTS idx_key ON cache (key);", mock.ExecutedQuery, "Expected query to match")
+		assert.Equal(
+			t,
+			"CREATE INDEX IF NOT EXISTS idx_key ON cache (key);",
+			mock.ExecutedQuery,
+			"Expected query to match",
+		)
 	})
 
 	t.Run("should return an error when creating index fails", func(t *testing.T) {
@@ -123,7 +140,11 @@ func TestSetCacheSize(t *testing.T) {
 		err := setCacheSize(ch)
 
 		assert.Error(t, err, "Expected an error when setting cache size")
-		assert.EqualError(t, err, "setting cache size: mock error", "Expected error message to match")
+		assert.EqualError(
+			t,
+			err,
+			"setting cache size: mock error",
+			"Expected error message to match",
+		)
 	})
-
 }

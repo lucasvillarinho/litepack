@@ -3,12 +3,11 @@ package drivers
 import "database/sql"
 
 type Mock struct {
-	ExecutedQuery string
-	ExecutedArgs  []interface{}
-	QueryErr      error
-
+	QueryErr        error
 	queryResultRows *sql.Rows
 	queryRowResult  *sql.Row
+	ExecutedQuery   string
+	ExecutedArgs    []interface{}
 }
 
 func (m *Mock) Execute(query string, args ...interface{}) (sql.Result, error) {
