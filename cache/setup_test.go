@@ -228,3 +228,71 @@ func TestSetDriver(t *testing.T) {
 		assert.EqualError(t, err, "error getting driver: mock error")
 	})
 }
+
+func TestSetPageSize(t *testing.T) {
+	t.Run("should set page size successfully", func(t *testing.T) {
+		mockEngine := &mocks.MockEngine{}
+		ch := &cache{
+			engine:   mockEngine,
+			pageSixe: 4096,
+		}
+
+		err := setPageSize(ch)
+
+		assert.NoError(t, err)
+		expectedQuery := "PRAGMA page_size = 4096;"
+		assert.Equal(t, expectedQuery, mockEngine.ExecutedQuery, "Executed query does not match expected query")
+	})
+
+	t.Run("should return an error if execute fails", func(t *testing.T) {
+		mockEngine := &mocks.MockEngine{
+			QueryErr: fmt.Errorf("mock execute error"),
+		}
+		ch := &cache{
+			engine:   mockEngine,
+			pageSixe: 8192,
+		}
+
+		err := setPageSize(ch)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "setting page size: mock execute error")
+		expectedQuery := "PRAGMA page_size = 8192;"
+		assert.Equal(t, expectedQuery, mockEngine.ExecutedQuery, "Executed query does not match expected query")
+	})
+}
+
+func TestSetMaxDbSize(t *testing.T) {
+	t.Run("should set max database size successfully", func(t *testing.T) {
+		mockEngine := &mocks.MockEngine{}
+		ch := &cache{
+			engine:   mockEngine,
+			dbSize:   128 * 1024 * 1024, // 128 MB
+			pageSixe: 4096,              // 4 KB
+		}
+
+		err := setMaxDbSize(ch)
+
+		assert.NoError(t, err)
+		expectedQuery := "PRAGMA max_page_count = 32768;" // 128 MB / 4 KB
+		assert.Equal(t, expectedQuery, mockEngine.ExecutedQuery, "Executed query does not match expected query")
+	})
+
+	t.Run("should return an error if execute fails", func(t *testing.T) {
+		mockEngine := &mocks.MockEngine{
+			QueryErr: fmt.Errorf("mock execute error"),
+		}
+		ch := &cache{
+			engine:   mockEngine,
+			dbSize:   64 * 1024 * 1024, // 64 MB
+			pageSixe: 4096,             // 4 KB
+		}
+
+		err := setMaxDbSize(ch)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "setting max page count: mock execute error")
+		expectedQuery := "PRAGMA max_page_count = 16384;" // 64 MB / 4 KB
+		assert.Equal(t, expectedQuery, mockEngine.ExecutedQuery, "Executed query does not match expected query")
+	})
+}

@@ -191,6 +191,14 @@ func setPageSize(ch *cache) error {
 // setMaxDbSize sets the maximum database size for the cache.
 // The maximum database size is set in pages.
 // The default maximum database size is 128 MB.
+//
+// Parameters:
+//
+//   - ch: the cache handle
+//
+// Returns:
+//
+//   - error: an error if the operation failed
 func setMaxDbSize(ch *cache) error {
 	_, err := ch.engine.Execute(fmt.Sprintf("PRAGMA max_page_count = %d;", ch.dbSize/ch.pageSixe))
 	if err != nil {
