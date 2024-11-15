@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Masterminds/squirrel"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lucasvillarinho/litepack/database"
@@ -89,13 +90,21 @@ func NewCache(path string, opts ...Option) (Cache, error) {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) Set(key string, value []byte, ttl time.Duration) error {
-	_, err := ch.engine.Execute(
-		`INSERT OR REPLACE INTO cache (key, value, expires_at) 
-		 VALUES (?, ?, ?);`,
-		key,
-		value,
-		time.Now().Add(ttl).In(ch.timezone),
-	)
+	query, args, err := squirrel.
+		Insert("cache").
+		Columns("key", "value", "expires_at").
+		Values(key, value, time.Now().Add(ttl).In(ch.timezone)).
+		Suffix("ON CONFLICT(key) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at").
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("error building query: %w", err)
+	}
+
+	_, err = ch.engine.Execute(query, args...)
+	if err != nil {
+		return fmt.Errorf("error executing query: %w", err)
+	}
+
 	return err
 }
 
@@ -110,20 +119,24 @@ func (ch *cache) Set(key string, value []byte, ttl time.Duration) error {
 func (ch *cache) Get(key string) ([]byte, error) {
 	var value []byte
 
-	// Query only non-expired records
-	err := ch.engine.
-		QueryRow(
-			`SELECT value FROM cache WHERE key = ? AND expires_at > ?;`,
-			key,
-			time.Now().In(ch.timezone),
-		).
-		Scan(&value)
+	query, args, err := squirrel.
+		Select("value").
+		From("cache").
+		Where(squirrel.And{
+			squirrel.Eq{"key": key},
+			squirrel.Gt{"expires_at": time.Now().In(ch.timezone)},
+		}).
+		ToSql()
 	if err != nil {
-		// Return nil if the key does not exist
+		return nil, fmt.Errorf("building query: %w", err)
+	}
+
+	err = ch.engine.QueryRow(query, args...).Scan(&value)
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("getting value: %w", err)
 	}
 
 	return value, nil
@@ -138,11 +151,19 @@ func (ch *cache) Get(key string) ([]byte, error) {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) Del(key string) error {
-	_, err := ch.engine.Execute(`DELETE FROM cache WHERE key = ?;`, key)
+	query, args, err := squirrel.
+		Delete("cache").
+		Where(squirrel.Eq{"key": key}).
+		ToSql()
 	if err != nil {
-		fmt.Println("error deleting key", err)
+		return fmt.Errorf("error building query: %w", err)
 	}
 
+	_, err = ch.engine.Execute(query, args...)
+	if err != nil {
+		fmt.Println("error deleting key", err)
+		return fmt.Errorf("deleting key: %w", err)
+	}
 	return err
 }
 
@@ -151,11 +172,17 @@ func (ch *cache) Del(key string) error {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) clearExpiredItems() error {
-	_, err := ch.engine.Execute(`
-		DELETE FROM cache WHERE expires_at <= ?;
-	`, time.Now().In(ch.timezone))
+	query, args, err := squirrel.
+		Delete("cache").
+		Where(squirrel.LtOrEq{"expires_at": time.Now().In(ch.timezone)}).
+		ToSql()
 	if err != nil {
-		return fmt.Errorf("clearing expired items: %w", err)
+		return fmt.Errorf("error building query: %w", err)
+	}
+
+	_, err = ch.engine.Execute(query, args...)
+	if err != nil {
+		return fmt.Errorf("error clear: %w", err)
 	}
 
 	return nil
