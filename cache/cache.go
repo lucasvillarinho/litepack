@@ -21,6 +21,7 @@ type cache struct {
 	timezone     *time.Location
 	dsn          string
 	syncInterval schedule.Interval
+	dbSize       int
 	cacheSize    int
 }
 
@@ -57,8 +58,9 @@ func NewCache(path string, opts ...Option) (Cache, error) {
 		dsn:          fmt.Sprintf("%s_lpack_cache.db", path),
 		syncInterval: schedule.EveryMinute,
 		timezone:     time.UTC,
-		cacheSize:    128 * 1024 * 1024, // 128 MB
 		drive:        drivers.DriverMattn,
+		cacheSize:    128 * 1024 * 1024, // 128 MB
+		dbSize:       128 * 1024 * 1024, // 64 MB
 	}
 
 	for _, opt := range opts {
