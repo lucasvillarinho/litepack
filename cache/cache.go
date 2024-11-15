@@ -3,7 +3,6 @@ package cache
 import (
 	"database/sql"
 	"fmt"
-	"log/slog"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -30,23 +29,6 @@ type Cache interface {
 	Del(key string) error
 	Close() error
 	Destroy() error
-}
-
-// CacheOption is a function that configures a cache instance.
-type Option func(*cache)
-
-// WithClearInterval sets a custom sync interval for the cache.
-func WithClearInterval(interval schedule.Interval) Option {
-	return func(c *cache) {
-		c.syncInterval = interval
-	}
-}
-
-// WithTimezone sets a custom timezone for the cache.
-func WithTimezone(location *time.Location) Option {
-	return func(c *cache) {
-		c.timezone = location
-	}
 }
 
 // NewCache creates a new cache instance with the given name and applies any provided options.
@@ -82,17 +64,12 @@ func NewCache(path string, opts ...Option) (Cache, error) {
 		opt(c)
 	}
 
-	err := c.setDriver()
-	if err != nil {
-		return nil, fmt.Errorf("error setting driver: %w", err)
-	}
-
-	err = c.setupTable()
+	err := setupTable(c)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up cache table: %w", err)
 	}
 
-	err = c.setupSyncClearByTTL()
+	err = startSyncClearByTTL(c)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up sync clear by TTL: %w", err)
 	}
@@ -198,180 +175,4 @@ func (ch *cache) Destroy() error {
 		return err
 	}
 	return database.DeleteDatabase(ch.dsn)
-}
-
-// startSyncClearByTTL sets up a schedule to clear expired cache items.
-//
-// Parameters:
-//   - scheduler: the scheduler to use
-//   - clearExpiredItems: the function to clear expired cache items
-func startSyncClearByTTL(scheduler schedule.Scheduler, clearExpiredItems func() error) {
-	go func() {
-		err := scheduler.Task(schedule.EveryMinute, clearExpiredItems)
-		if err != nil {
-			slog.Error("Failed to schedule cache clear task", slog.String("error", err.Error()))
-		}
-	}()
-}
-
-// createCacheTable creates the cache table if it does not exist.
-//
-// The table has the following schema:
-//
-//   - key: TEXT PRIMARY KEY
-//   - value: BLOB
-//   - expires_at: TIMESTAMP
-//   - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//
-// Parameters:
-//   - db: the database handle
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) createCacheTable() error {
-	createTableSQL := `
-    CREATE TABLE IF NOT EXISTS cache (
-        key TEXT PRIMARY KEY,
-        value BLOB,
-        expires_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );`
-
-	_, err := ch.engine.Execute(createTableSQL)
-	if err != nil {
-		return fmt.Errorf("creating table: %w", err)
-	}
-	return nil
-}
-
-// setDriver sets the driver for the cache.
-// The driver is used to interact with the SQLite database.
-//
-// Configuration defaults:
-//   - driver: mattn
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) setDriver() error {
-	driverFactory := drivers.NewDriverFactory()
-
-	engine, err := driverFactory.GetDriver(ch.drive, ch.dsn)
-	if err != nil {
-		return fmt.Errorf("error getting driver: %w", err)
-	}
-	ch.engine = engine
-
-	return nil
-}
-
-// SetupTable creates the cache table with custom configuration.
-
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) setupTable() error {
-	err := ch.createCacheTable()
-	if err != nil {
-		return err
-	}
-
-	err = ch.createIndex()
-	if err != nil {
-		return err
-	}
-
-	err = ch.setWalMode()
-	if err != nil {
-		return err
-	}
-
-	err = ch.setCacheSize()
-	if err != nil {
-		return err
-	}
-
-	err = ch.setSynchronousMode()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// createIndex creates an index on the cache table for the key column.
-//
-// Parameters:
-//   - db: the database handle
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) createIndex() error {
-	createIndexSQL := `CREATE INDEX IF NOT EXISTS idx_key ON cache (key);`
-	_, err := ch.engine.Execute(createIndexSQL)
-	if err != nil {
-		return fmt.Errorf("creating index: %w", err)
-	}
-	return nil
-}
-
-// setCacheSize sets the cache size for the database.
-// The cache size is set in pages, with each page being 4096 bytes.
-// The default cache size is 128 MB.
-//
-// This cache is used by SQLite to store data pages in memory,
-// minimizing the need for direct disk access.
-//
-// Returns:
-//
-//   - error: an error if the operation failed
-func (ch *cache) setCacheSize() error {
-	pages := ch.cacheSize / 4096
-
-	query := fmt.Sprintf("PRAGMA cache_size = %d;", pages)
-
-	_, err := ch.engine.Execute(query)
-	if err != nil {
-		return fmt.Errorf("setting cache size: %w", err)
-	}
-
-	return nil
-}
-
-// setWalMode enables Write-Ahead Logging (WAL) mode for the database.
-// WAL mode allows for concurrent reads and writes to the database.
-// WAL mode is recommended for high-traffic applications.
-//
-// Parameters:
-//   - db: the database handle
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) setWalMode() error {
-	_, err := ch.engine.Execute("PRAGMA journal_mode=WAL;")
-	if err != nil {
-		return fmt.Errorf("enabling WAL mode: %w", err)
-	}
-	return nil
-}
-
-// setSynchronousMode sets the synchronous mode for the database.
-// Synchronous mode determines how often the database writes to disk.
-func (ch *cache) setSynchronousMode() error {
-	_, err := ch.engine.Execute("PRAGMA synchronous = NORMAL;")
-	if err != nil {
-		return fmt.Errorf("setting synchronous mode: %w", err)
-	}
-	return nil
-}
-
-// setupSyncClearByTTL sets up a schedule to clear expired cache items.
-//
-// Returns:
-//
-//   - error: an error if the operation failed
-func (ch *cache) setupSyncClearByTTL() error {
-	scheduler, err := schedule.NewScheduler(ch.timezone)
-	ch.scheduler = scheduler
-	startSyncClearByTTL(scheduler, ch.clearExpiredItems)
-
-	return err
 }
