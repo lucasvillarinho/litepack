@@ -15,6 +15,14 @@ func setupTable(ch *cache) error {
 		return err
 	}
 
+	if err := setPageSize(ch); err != nil {
+		return err
+	}
+
+	if err := setMaxDbSize(ch); err != nil {
+		return err
+	}
+
 	if err := createCacheTable(ch); err != nil {
 		return err
 	}
@@ -96,7 +104,7 @@ func createIndex(ch *cache) error {
 //
 //   - error: an error if the operation failed
 func setCacheSize(ch *cache) error {
-	pages := ch.cacheSize / 4096
+	pages := ch.cacheSize / ch.pageSixe
 
 	query := fmt.Sprintf("PRAGMA cache_size = %d;", pages)
 
@@ -159,5 +167,34 @@ func setDriver(ch *cache, driverFactory drivers.DriverFactory) error {
 	}
 	ch.engine = engine
 
+	return nil
+}
+
+// setPageSize sets the page size for the database.
+// The page size is the unit of data storage in SQLite.
+// The default page size is 4096 bytes.
+//
+// Parameters:
+//
+//   - ch: the cache handle
+//
+// Returns:
+//   - error: an error if the operation failed
+func setPageSize(ch *cache) error {
+	_, err := ch.engine.Execute(fmt.Sprintf("PRAGMA page_size = %d;", ch.pageSixe))
+	if err != nil {
+		return fmt.Errorf("setting page size: %w", err)
+	}
+	return nil
+}
+
+// setMaxDbSize sets the maximum database size for the cache.
+// The maximum database size is set in pages.
+// The default maximum database size is 128 MB.
+func setMaxDbSize(ch *cache) error {
+	_, err := ch.engine.Execute(fmt.Sprintf("PRAGMA max_page_count = %d;", ch.dbSize/ch.pageSixe))
+	if err != nil {
+		return fmt.Errorf("setting max page count: %w", err)
+	}
 	return nil
 }

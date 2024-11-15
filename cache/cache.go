@@ -15,14 +15,15 @@ import (
 
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
-	scheduler    schedule.Scheduler
-	engine       drivers.Driver
-	drive        drivers.DriverType
-	timezone     *time.Location
-	dsn          string
-	syncInterval schedule.Interval
-	dbSize       int
-	cacheSize    int
+	scheduler    schedule.Scheduler // scheduler is used to schedule cache clearing by TTL
+	engine       drivers.Driver     // engine is the database driver
+	drive        drivers.DriverType // drive is the database driver type
+	timezone     *time.Location     // timezone is the cache timezone
+	dsn          string             // dsn is the database source name
+	syncInterval schedule.Interval  // syncInterval is the cache sync interval
+	dbSize       int                // dbSize is the cache database size
+	cacheSize    int                // cacheSize is the cache size
+	pageSixe     int                // pageSize is the cache page size
 }
 
 type Cache interface {
@@ -60,7 +61,8 @@ func NewCache(path string, opts ...Option) (Cache, error) {
 		timezone:     time.UTC,
 		drive:        drivers.DriverMattn,
 		cacheSize:    128 * 1024 * 1024, // 128 MB
-		dbSize:       128 * 1024 * 1024, // 64 MB
+		dbSize:       128 * 1024 * 1024, // 128 MB
+		pageSixe:     4096,
 	}
 
 	for _, opt := range opts {
