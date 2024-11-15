@@ -11,33 +11,27 @@ import (
 // Returns:
 //   - error: an error if the operation failed
 func setupTable(ch *cache) error {
-	err := setDriver(ch, drivers.NewDriverFactory())
-	if err != nil {
+	if err := setDriver(ch, drivers.NewDriverFactory()); err != nil {
 		return err
 	}
 
-	err = createCacheTable(ch)
-	if err != nil {
+	if err := createCacheTable(ch); err != nil {
 		return err
 	}
 
-	err = createIndex(ch)
-	if err != nil {
+	if err := createIndex(ch); err != nil {
 		return err
 	}
 
-	err = setWalMode(ch)
-	if err != nil {
+	if err := setWalMode(ch); err != nil {
 		return err
 	}
 
-	err = setCacheSize(ch)
-	if err != nil {
+	if err := setCacheSize(ch); err != nil {
 		return err
 	}
 
-	err = setSynchronousMode(ch)
-	if err != nil {
+	if err := setSynchronousMode(ch); err != nil {
 		return err
 	}
 
