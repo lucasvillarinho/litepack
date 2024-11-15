@@ -2,7 +2,7 @@ package drivers
 
 import "database/sql"
 
-type Mock struct {
+type MockEngine struct {
 	QueryErr        error
 	queryResultRows *sql.Rows
 	queryRowResult  *sql.Row
@@ -10,13 +10,13 @@ type Mock struct {
 	ExecutedArgs    []interface{}
 }
 
-func (m *Mock) Execute(query string, args ...interface{}) (sql.Result, error) {
+func (m *MockEngine) Execute(query string, args ...interface{}) (sql.Result, error) {
 	m.ExecutedQuery = query
 	m.ExecutedArgs = args
 	return nil, m.QueryErr
 }
 
-func (m *Mock) Query(query string, args ...interface{}) (*sql.Rows, error) {
+func (m *MockEngine) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	m.ExecutedQuery = query
 	m.ExecutedArgs = args
 	if m.QueryErr != nil {
@@ -25,12 +25,12 @@ func (m *Mock) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	return m.queryResultRows, nil
 }
 
-func (m *Mock) QueryRow(query string, args ...interface{}) *sql.Row {
+func (m *MockEngine) QueryRow(query string, args ...interface{}) *sql.Row {
 	m.ExecutedQuery = query
 	m.ExecutedArgs = args
 	return m.queryRowResult
 }
 
-func (m *Mock) Close() error {
+func (m *MockEngine) Close() error {
 	return nil
 }

@@ -7,11 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lucasvillarinho/litepack/database/drivers"
+	mocks "github.com/lucasvillarinho/litepack/database/drivers/mocks"
 )
 
 func TestSetWalMode(t *testing.T) {
 	t.Run("should enable WAL mode successfully", func(t *testing.T) {
-		mock := &drivers.Mock{}
+		mock := &mocks.MockEngine{}
 		ch := &cache{
 			engine: mock,
 		}
@@ -23,7 +24,7 @@ func TestSetWalMode(t *testing.T) {
 	})
 
 	t.Run("should return an error when enabling WAL mode fails", func(t *testing.T) {
-		mock := &drivers.Mock{
+		mock := &mocks.MockEngine{
 			QueryErr: fmt.Errorf("mock error"),
 		}
 		ch := &cache{
@@ -44,7 +45,7 @@ func TestSetWalMode(t *testing.T) {
 
 func TestSetSynchronousMode(t *testing.T) {
 	t.Run("should set synchronous mode successfully", func(t *testing.T) {
-		mock := &drivers.Mock{}
+		mock := &mocks.MockEngine{}
 		ch := &cache{
 			engine: mock,
 		}
@@ -61,7 +62,7 @@ func TestSetSynchronousMode(t *testing.T) {
 	})
 
 	t.Run("should return an error when setting synchronous mode fails", func(t *testing.T) {
-		mock := &drivers.Mock{
+		mock := &mocks.MockEngine{
 			QueryErr: fmt.Errorf("mock error"),
 		}
 		ch := &cache{
@@ -82,7 +83,7 @@ func TestSetSynchronousMode(t *testing.T) {
 
 func TestCreateIndex(t *testing.T) {
 	t.Run("should create index successfully", func(t *testing.T) {
-		mock := &drivers.Mock{}
+		mock := &mocks.MockEngine{}
 		ch := &cache{
 			engine: mock,
 		}
@@ -99,7 +100,7 @@ func TestCreateIndex(t *testing.T) {
 	})
 
 	t.Run("should return an error when creating index fails", func(t *testing.T) {
-		mock := &drivers.Mock{
+		mock := &mocks.MockEngine{
 			QueryErr: fmt.Errorf("mock error"),
 		}
 		ch := &cache{
@@ -115,7 +116,7 @@ func TestCreateIndex(t *testing.T) {
 
 func TestSetCacheSize(t *testing.T) {
 	t.Run("should set cache size successfully", func(t *testing.T) {
-		mock := &drivers.Mock{}
+		mock := &mocks.MockEngine{}
 		ch := &cache{
 			engine:    mock,
 			cacheSize: 128 * 1024 * 1024, // 128 MB
@@ -129,7 +130,7 @@ func TestSetCacheSize(t *testing.T) {
 	})
 
 	t.Run("should return an error when setting cache size fails", func(t *testing.T) {
-		mock := &drivers.Mock{
+		mock := &mocks.MockEngine{
 			QueryErr: fmt.Errorf("mock error"),
 		}
 		ch := &cache{
@@ -146,5 +147,83 @@ func TestSetCacheSize(t *testing.T) {
 			"setting cache size: mock error",
 			"Expected error message to match",
 		)
+	})
+}
+
+func TestCreateCacheTable(t *testing.T) {
+	t.Run("should create cache table successfully", func(t *testing.T) {
+		mock := &mocks.MockEngine{}
+		ch := &cache{
+			engine: mock,
+		}
+
+		err := createCacheTable(ch)
+
+		expectedQuery := `
+    CREATE TABLE IF NOT EXISTS cache (
+        key TEXT PRIMARY KEY,
+        value BLOB,
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`
+		assert.NoError(t, err)
+		assert.Equal(t, expectedQuery, mock.ExecutedQuery)
+	})
+
+	t.Run("should return an error when creating cache table fails", func(t *testing.T) {
+		mock := &mocks.MockEngine{
+			QueryErr: fmt.Errorf("mock error"),
+		}
+		ch := &cache{
+			engine: mock,
+		}
+
+		err := createCacheTable(ch)
+
+		expectedQuery := `
+    CREATE TABLE IF NOT EXISTS cache (
+        key TEXT PRIMARY KEY,
+        value BLOB,
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`
+		assert.Error(t, err)
+		assert.Equal(t, expectedQuery, mock.ExecutedQuery)
+		assert.EqualError(t, err, "creating table: mock error")
+	})
+}
+
+func TestSetDriver(t *testing.T) {
+	t.Run("should set the driver successfully", func(t *testing.T) {
+		mockDriver := &mocks.MockEngine{}
+		mockFactory := &mocks.MockDriverFactory{
+			MockDriver: mockDriver,
+		}
+
+		ch := &cache{
+			drive: drivers.DriverMattn,
+			dsn:   "mock_dsn",
+		}
+
+		err := setDriver(ch, mockFactory)
+
+		assert.NoError(t, err)
+		assert.Equal(t, mockDriver, ch.engine)
+	})
+
+	t.Run("should return an error when getting the driver fails", func(t *testing.T) {
+		mockFactory := &mocks.MockDriverFactory{
+			Error: fmt.Errorf("mock error"),
+		}
+
+		ch := &cache{
+			drive: drivers.DriverMattn,
+			dsn:   "mock_dsn",
+		}
+
+		err := setDriver(ch, mockFactory)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "error getting driver: mock error")
 	})
 }

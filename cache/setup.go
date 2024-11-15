@@ -11,7 +11,7 @@ import (
 // Returns:
 //   - error: an error if the operation failed
 func setupTable(ch *cache) error {
-	err := setDriver(ch)
+	err := setDriver(ch, drivers.NewDriverFactory())
 	if err != nil {
 		return err
 	}
@@ -150,11 +150,14 @@ func createCacheTable(ch *cache) error {
 // Configuration defaults:
 //   - driver: mattn
 //
+// Parameters:
+//
+//   - ch: the cache handle
+//   - driverFactory: the driver factory
+//
 // Returns:
 //   - error: an error if the operation failed
-func setDriver(ch *cache) error {
-	driverFactory := drivers.NewDriverFactory()
-
+func setDriver(ch *cache, driverFactory drivers.DriverFactory) error {
 	engine, err := driverFactory.GetDriver(ch.drive, ch.dsn)
 	if err != nil {
 		return fmt.Errorf("error getting driver: %w", err)

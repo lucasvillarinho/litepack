@@ -13,13 +13,17 @@ const (
 )
 
 // DriverFactory is a factory for creating new instances of drivers.
-type DriverFactory struct {
+type driverFactory struct {
 	drivers map[DriverType]func(string) (Driver, error)
 }
 
+type DriverFactory interface {
+	GetDriver(driverType DriverType, dsn string) (Driver, error)
+}
+
 // NewDriverFactory creates a new instance of DriverFactory.
-func NewDriverFactory() *DriverFactory {
-	return &DriverFactory{
+func NewDriverFactory() DriverFactory {
+	return &driverFactory{
 		drivers: map[DriverType]func(string) (Driver, error){
 			DriverMattn:   NewMattnDriver,
 			DriverModernc: NewModerncDriver,
@@ -41,7 +45,7 @@ func NewDriverFactory() *DriverFactory {
 // Returns:
 // - Driver: The new driver instance.
 // - error: An error if the driver type is not supported.
-func (f *DriverFactory) GetDriver(driverType DriverType, dsn string) (Driver, error) {
+func (f *driverFactory) GetDriver(driverType DriverType, dsn string) (Driver, error) {
 	constructor, exists := f.drivers[driverType]
 	if !exists {
 		return nil, fmt.Errorf("unknown driver type: %s", driverType)
