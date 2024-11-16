@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/squirrel"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lucasvillarinho/litepack/cache/queries"
@@ -134,6 +133,13 @@ func (ch *cache) setupDatabase(ctx context.Context) error {
 	return nil
 }
 
+// SetupTable creates the cache table if it does not exist.
+//
+// Parameters:
+//   - ctx: the context
+//
+// Returns:
+//   - error: an error if the operation failed
 func (ch *cache) SetupTable(ctx context.Context) error {
 	err := ch.queries.CreateDatabase(ctx)
 	if err != nil {
@@ -337,16 +343,7 @@ func (ch *cache) VacuumWithTransaction(tx *sql.Tx) error {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) clearExpiredItems(ctx context.Context) error {
-	query, args, err := squirrel.
-		Delete("cache").
-		Where(squirrel.LtOrEq{"expires_at": time.Now().In(ch.timezone)}).
-		ToSql()
-	if err != nil {
-		return fmt.Errorf("error building query: %w", err)
-	}
-
-	_, err = ch.engine.ExecContext(ctx, query, args...)
-	if err != nil {
+	if err := ch.queries.DeleteExpiredCache(ctx, time.Now().In(ch.timezone)); err != nil {
 		return fmt.Errorf("error clear: %w", err)
 	}
 

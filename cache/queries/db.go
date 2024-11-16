@@ -30,6 +30,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createDatabaseStmt, err = db.PrepareContext(ctx, createDatabase); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateDatabase: %w", err)
 	}
+	if q.deleteExpiredCacheStmt, err = db.PrepareContext(ctx, deleteExpiredCache); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteExpiredCache: %w", err)
+	}
 	if q.deleteKeyStmt, err = db.PrepareContext(ctx, deleteKey); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteKey: %w", err)
 	}
@@ -61,6 +64,11 @@ func (q *Queries) Close() error {
 	if q.createDatabaseStmt != nil {
 		if cerr := q.createDatabaseStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createDatabaseStmt: %w", cerr)
+		}
+	}
+	if q.deleteExpiredCacheStmt != nil {
+		if cerr := q.deleteExpiredCacheStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteExpiredCacheStmt: %w", cerr)
 		}
 	}
 	if q.deleteKeyStmt != nil {
@@ -134,6 +142,7 @@ type Queries struct {
 	tx                       *sql.Tx
 	countEntriesStmt         *sql.Stmt
 	createDatabaseStmt       *sql.Stmt
+	deleteExpiredCacheStmt   *sql.Stmt
 	deleteKeyStmt            *sql.Stmt
 	deleteKeysStmt           *sql.Stmt
 	getValueStmt             *sql.Stmt
@@ -148,6 +157,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                       tx,
 		countEntriesStmt:         q.countEntriesStmt,
 		createDatabaseStmt:       q.createDatabaseStmt,
+		deleteExpiredCacheStmt:   q.deleteExpiredCacheStmt,
 		deleteKeyStmt:            q.deleteKeyStmt,
 		deleteKeysStmt:           q.deleteKeysStmt,
 		getValueStmt:             q.getValueStmt,

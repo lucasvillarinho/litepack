@@ -49,3 +49,8 @@ ON CONFLICT (key) DO UPDATE
 SET value = excluded.value,
     expires_at = excluded.expires_at,
     last_accessed_at = excluded.last_accessed_at;
+
+
+-- name: DeleteExpiredCache :exec
+DELETE FROM cache
+WHERE expires_at <= ?;

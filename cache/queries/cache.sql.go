@@ -36,6 +36,16 @@ func (q *Queries) CreateDatabase(ctx context.Context) error {
 	return err
 }
 
+const deleteExpiredCache = `-- name: DeleteExpiredCache :exec
+DELETE FROM cache
+WHERE expires_at <= ?
+`
+
+func (q *Queries) DeleteExpiredCache(ctx context.Context, expiresAt time.Time) error {
+	_, err := q.exec(ctx, q.deleteExpiredCacheStmt, deleteExpiredCache, expiresAt)
+	return err
+}
+
 const deleteKey = `-- name: DeleteKey :exec
 DELETE FROM cache
 WHERE key = ?
