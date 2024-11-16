@@ -176,7 +176,7 @@ func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Dur
 		if err := ch.queries.UpsertCache(context.Background(), params); err != nil {
 			// If the database is full, purge the cache and try again.
 			if database.IsDatabaseFullError(err) {
-				if err := ch.PurgeDB(ctx); err != nil {
+				if err = ch.PurgeDB(ctx); err != nil {
 					return fmt.Errorf("error purging cache: %w", err)
 				}
 			}

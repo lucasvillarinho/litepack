@@ -28,7 +28,7 @@ type MockTx struct {
 }
 
 func (m *MockEngine) ExecContext(
-	ctx context.Context,
+	_ context.Context,
 	query string,
 	args ...interface{},
 ) (sql.Result, error) {
@@ -44,7 +44,7 @@ func (m *MockEngine) ExecContext(
 }
 
 func (m *MockEngine) QueryContext(
-	ctx context.Context,
+	_ context.Context,
 	query string,
 	args ...interface{},
 ) (*sql.Rows, error) {
@@ -58,7 +58,7 @@ func (m *MockEngine) QueryContext(
 }
 
 func (m *MockEngine) QueryRowContext(
-	ctx context.Context,
+	_ context.Context,
 	query string,
 	args ...interface{},
 ) *sql.Row {
@@ -69,7 +69,7 @@ func (m *MockEngine) QueryRowContext(
 }
 
 // Simula o método PrepareContext
-func (m *MockEngine) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
+func (m *MockEngine) PrepareContext(_ context.Context, query string) (*sql.Stmt, error) {
 	m.PrepareQuery = query
 	return nil, m.PrepareErr
 }
