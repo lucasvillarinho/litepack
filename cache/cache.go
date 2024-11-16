@@ -18,19 +18,19 @@ import (
 
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
-	sync.RWMutex                    // RWMutex is used to synchronize access to the cache
-	scheduler    schedule.Scheduler // scheduler is used to schedule cache clearing by TTL
-	engine       drivers.Driver     // engine is the database driver
-	drive        drivers.DriverType // drive is the database driver type
-	timezone     *time.Location     // timezone is the cache timezone
-	dsn          string             // dsn is the database source name
-	syncInterval schedule.Interval  // syncInterval is the cache sync interval
-	dbSize       int                // dbSize is the cache database size
-	cacheSize    int                // cacheSize is the cache size
-	pageSize     int                // pageSize is the cache page size
-	purgePercent float64            // percentPurge is the cache purge percentage
-	purgeTimeout time.Duration      // purgeTimeout is the cache purge timeout
-	queries      *queries.Queries   // queries is the cache queries
+	scheduler    schedule.Scheduler
+	engine       drivers.Driver
+	timezone     *time.Location
+	queries      *queries.Queries
+	syncInterval schedule.Interval
+	dsn          string
+	drive        drivers.DriverType
+	dbSize       int
+	cacheSize    int
+	pageSize     int
+	purgePercent float64
+	purgeTimeout time.Duration
+	sync.RWMutex
 }
 
 type Cache interface {

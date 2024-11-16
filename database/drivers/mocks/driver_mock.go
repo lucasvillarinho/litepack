@@ -7,27 +7,31 @@ import (
 
 type MockEngine struct {
 	QueryErr        error
+	PrepareErr      error
+	BeginError      error
 	QueryErrors     map[string]error
 	QueryResultRows *sql.Rows
 	QueryRowResult  *sql.Row
+	TxMock          *MockTx
 	PrepareQuery    string
-	PrepareErr      error
 	ExecutedQuery   string
 	ExecutedQueries []string
 	ExecutedArgs    []interface{}
 	BeginCalled     bool
-	BeginError      error
-	TxMock          *MockTx
 }
 
 type MockTx struct {
-	Committed   bool
-	RolledBack  bool
 	ExecQueries []string
 	ExecArgs    [][]interface{}
+	Committed   bool
+	RolledBack  bool
 }
 
-func (m *MockEngine) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+func (m *MockEngine) ExecContext(
+	ctx context.Context,
+	query string,
+	args ...interface{},
+) (sql.Result, error) {
 	m.ExecutedQueries = append(m.ExecutedQueries, query)
 	m.ExecutedQuery = query
 	m.ExecutedArgs = args
@@ -39,7 +43,11 @@ func (m *MockEngine) ExecContext(ctx context.Context, query string, args ...inte
 	return nil, m.QueryErr
 }
 
-func (m *MockEngine) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+func (m *MockEngine) QueryContext(
+	ctx context.Context,
+	query string,
+	args ...interface{},
+) (*sql.Rows, error) {
 	m.ExecutedQueries = append(m.ExecutedQueries, query)
 	m.ExecutedQuery = query
 	m.ExecutedArgs = args
@@ -49,7 +57,11 @@ func (m *MockEngine) QueryContext(ctx context.Context, query string, args ...int
 	return m.QueryResultRows, nil
 }
 
-func (m *MockEngine) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
+func (m *MockEngine) QueryRowContext(
+	ctx context.Context,
+	query string,
+	args ...interface{},
+) *sql.Row {
 	m.ExecutedQueries = append(m.ExecutedQueries, query)
 	m.ExecutedQuery = query
 	m.ExecutedArgs = args

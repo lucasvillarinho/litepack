@@ -33,7 +33,6 @@ func TestNewScheduler(t *testing.T) {
 }
 
 func TestTask(t *testing.T) {
-
 	ctx := context.Background()
 	t.Run("should schedule a task successfully", func(t *testing.T) {
 		mock := &mockCron{}

@@ -18,15 +18,27 @@ type BaseDriver struct {
 	DB *sql.DB
 }
 
-func (d *BaseDriver) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+func (d *BaseDriver) ExecContext(
+	ctx context.Context,
+	query string,
+	args ...interface{},
+) (sql.Result, error) {
 	return d.DB.ExecContext(ctx, query, args...)
 }
 
-func (d *BaseDriver) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+func (d *BaseDriver) QueryContext(
+	ctx context.Context,
+	query string,
+	args ...interface{},
+) (*sql.Rows, error) {
 	return d.DB.QueryContext(ctx, query, args...)
 }
 
-func (d *BaseDriver) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
+func (d *BaseDriver) QueryRowContext(
+	ctx context.Context,
+	query string,
+	args ...interface{},
+) *sql.Row {
 	return d.DB.QueryRowContext(ctx, query, args...)
 }
 

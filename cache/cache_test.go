@@ -60,7 +60,6 @@ func TestCacheGet(t *testing.T) {
 		assert.Error(t, err, "Expected error for failing query")
 		assert.Nil(t, value, "Expected nil value for failing query")
 	})
-
 }
 
 func TestSetupDatabase(t *testing.T) {
@@ -81,11 +80,36 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.NoError(t, err, "Expected no error during database setup")
-		assert.Equal(t, "PRAGMA journal_mode=WAL;", mockEngine.ExecutedQueries[0], "Expected journal_mode to be set to WAL")
-		assert.Equal(t, "PRAGMA synchronous = NORMAL;", mockEngine.ExecutedQueries[1], "Expected synchronous mode to be set to NORMAL")
-		assert.Equal(t, "PRAGMA max_page_count = 32768;", mockEngine.ExecutedQueries[2], "Expected max page count query to match")
-		assert.Equal(t, "PRAGMA page_size = 4096;", mockEngine.ExecutedQueries[3], "Expected page size query to match")
-		assert.Equal(t, "PRAGMA cache_size = 32768;", mockEngine.ExecutedQueries[4], "Expected cache size query to match")
+		assert.Equal(
+			t,
+			"PRAGMA journal_mode=WAL;",
+			mockEngine.ExecutedQueries[0],
+			"Expected journal_mode to be set to WAL",
+		)
+		assert.Equal(
+			t,
+			"PRAGMA synchronous = NORMAL;",
+			mockEngine.ExecutedQueries[1],
+			"Expected synchronous mode to be set to NORMAL",
+		)
+		assert.Equal(
+			t,
+			"PRAGMA max_page_count = 32768;",
+			mockEngine.ExecutedQueries[2],
+			"Expected max page count query to match",
+		)
+		assert.Equal(
+			t,
+			"PRAGMA page_size = 4096;",
+			mockEngine.ExecutedQueries[3],
+			"Expected page size query to match",
+		)
+		assert.Equal(
+			t,
+			"PRAGMA cache_size = 32768;",
+			mockEngine.ExecutedQueries[4],
+			"Expected cache size query to match",
+		)
 	})
 
 	t.Run("should return an error when enabling WAL mode fails", func(t *testing.T) {
@@ -104,8 +128,18 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when enabling WAL mode fails")
-		assert.Equal(t, "PRAGMA journal_mode=WAL;", mockEngine.ExecutedQueries[0], "Expected journal_mode to be set to WAL")
-		assert.Contains(t, err.Error(), "enabling WAL mode: mock error enabling WAL mode", "Error message should match")
+		assert.Equal(
+			t,
+			"PRAGMA journal_mode=WAL;",
+			mockEngine.ExecutedQueries[0],
+			"Expected journal_mode to be set to WAL",
+		)
+		assert.Contains(
+			t,
+			err.Error(),
+			"enabling WAL mode: mock error enabling WAL mode",
+			"Error message should match",
+		)
 	})
 
 	t.Run("should return an error when setting synchronous mode fails", func(t *testing.T) {
@@ -124,8 +158,18 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting synchronous mode fails")
-		assert.Equal(t, "PRAGMA journal_mode=WAL;", mockEngine.ExecutedQueries[0], "Expected journal_mode to be set to WAL")
-		assert.Contains(t, err.Error(), "setting synchronous mode: mock error setting synchronous mode", "Error message should match")
+		assert.Equal(
+			t,
+			"PRAGMA journal_mode=WAL;",
+			mockEngine.ExecutedQueries[0],
+			"Expected journal_mode to be set to WAL",
+		)
+		assert.Contains(
+			t,
+			err.Error(),
+			"setting synchronous mode: mock error setting synchronous mode",
+			"Error message should match",
+		)
 	})
 
 	t.Run("should return an error when setting max page count fails", func(t *testing.T) {
@@ -147,8 +191,18 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting max page count fails")
-		assert.Equal(t, "PRAGMA max_page_count = 32768;", mockEngine.ExecutedQueries[2], "Expected max page count query to match")
-		assert.Contains(t, err.Error(), "setting max page count: mock error setting max page count", "Error message should match")
+		assert.Equal(
+			t,
+			"PRAGMA max_page_count = 32768;",
+			mockEngine.ExecutedQueries[2],
+			"Expected max page count query to match",
+		)
+		assert.Contains(
+			t,
+			err.Error(),
+			"setting max page count: mock error setting max page count",
+			"Error message should match",
+		)
 	})
 
 	t.Run("should return an error when setting page size fails", func(t *testing.T) {
@@ -170,8 +224,18 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting page size fails")
-		assert.Equal(t, "PRAGMA page_size = 4096;", mockEngine.ExecutedQueries[3], "Expected page size query to match")
-		assert.Contains(t, err.Error(), "setting page size: mock error setting page size", "Error message should match")
+		assert.Equal(
+			t,
+			"PRAGMA page_size = 4096;",
+			mockEngine.ExecutedQueries[3],
+			"Expected page size query to match",
+		)
+		assert.Contains(
+			t,
+			err.Error(),
+			"setting page size: mock error setting page size",
+			"Error message should match",
+		)
 	})
 
 	t.Run("should return an error when setting cache size fails", func(t *testing.T) {
@@ -193,8 +257,17 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting cache size fails")
-		assert.Equal(t, "PRAGMA cache_size = 32768;", mockEngine.ExecutedQueries[4], "Expected cache size query to match")
-		assert.Contains(t, err.Error(), "setting cache size: mock error setting cache size", "Error message should match")
+		assert.Equal(
+			t,
+			"PRAGMA cache_size = 32768;",
+			mockEngine.ExecutedQueries[4],
+			"Expected cache size query to match",
+		)
+		assert.Contains(
+			t,
+			err.Error(),
+			"setting cache size: mock error setting cache size",
+			"Error message should match",
+		)
 	})
-
 }

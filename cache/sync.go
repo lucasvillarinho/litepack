@@ -22,7 +22,11 @@ func startSyncClearByTTL(ctx context.Context, ch *cache) error {
 }
 
 // createTaskCleaner creates a task to clean expired cache items.
-func createTaskCleaner(ctx context.Context, scheduler schedule.Scheduler, clearExpiredItems func(context.Context) error) {
+func createTaskCleaner(
+	ctx context.Context,
+	scheduler schedule.Scheduler,
+	clearExpiredItems func(context.Context) error,
+) {
 	go func() {
 		err := scheduler.Task(ctx, schedule.EveryMinute, clearExpiredItems)
 		if err != nil {
