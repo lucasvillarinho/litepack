@@ -68,18 +68,15 @@ func (m *MockEngine) QueryRowContext(
 	return m.QueryRowResult
 }
 
-// Simula o método PrepareContext
 func (m *MockEngine) PrepareContext(_ context.Context, query string) (*sql.Stmt, error) {
 	m.PrepareQuery = query
 	return nil, m.PrepareErr
 }
 
-// Simula o fechamento do banco
 func (m *MockEngine) Close() error {
 	return nil
 }
 
-// Simula o início de uma transação
 func (m *MockEngine) Begin() (*sql.Tx, error) {
 	m.BeginCalled = true
 	if m.BeginError != nil {
@@ -91,7 +88,6 @@ func (m *MockEngine) Begin() (*sql.Tx, error) {
 	return &sql.Tx{}, nil
 }
 
-// Métodos do MockTx
 func (m *MockTx) Exec(query string, args ...interface{}) (sql.Result, error) {
 	m.ExecQueries = append(m.ExecQueries, query)
 	m.ExecArgs = append(m.ExecArgs, args)
