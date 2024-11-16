@@ -120,7 +120,8 @@ func TestSetCacheSize(t *testing.T) {
 		mock := &mocks.MockEngine{}
 		ch := &cache{
 			engine:    mock,
-			cacheSize: 128 * 1024 * 1024, // 128 MB
+			cacheSize: 128 * 1024 * 1024,
+			pageSize:  4096,
 		}
 
 		err := setCacheSize(ch)
@@ -137,6 +138,7 @@ func TestSetCacheSize(t *testing.T) {
 		ch := &cache{
 			engine:    mock,
 			cacheSize: 128 * 1024 * 1024, // 128 MB
+			pageSize:  4096,
 		}
 
 		err := setCacheSize(ch)
@@ -234,7 +236,7 @@ func TestSetPageSize(t *testing.T) {
 		mockEngine := &mocks.MockEngine{}
 		ch := &cache{
 			engine:   mockEngine,
-			pageSixe: 4096,
+			pageSize: 4096,
 		}
 
 		err := setPageSize(ch)
@@ -250,7 +252,7 @@ func TestSetPageSize(t *testing.T) {
 		}
 		ch := &cache{
 			engine:   mockEngine,
-			pageSixe: 8192,
+			pageSize: 8192,
 		}
 
 		err := setPageSize(ch)
@@ -268,7 +270,7 @@ func TestSetMaxDbSize(t *testing.T) {
 		ch := &cache{
 			engine:   mockEngine,
 			dbSize:   128 * 1024 * 1024, // 128 MB
-			pageSixe: 4096,              // 4 KB
+			pageSize: 4096,              // 4 KB
 		}
 
 		err := setMaxDbSize(ch)
@@ -285,7 +287,7 @@ func TestSetMaxDbSize(t *testing.T) {
 		ch := &cache{
 			engine:   mockEngine,
 			dbSize:   64 * 1024 * 1024, // 64 MB
-			pageSixe: 4096,             // 4 KB
+			pageSize: 4096,             // 4 KB
 		}
 
 		err := setMaxDbSize(ch)

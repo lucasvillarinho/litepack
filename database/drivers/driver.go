@@ -6,6 +6,7 @@ type Driver interface {
 	Execute(query string, args ...interface{}) (sql.Result, error)
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 	QueryRow(query string, args ...interface{}) *sql.Row
+	Begin() (*sql.Tx, error)
 	Close() error
 }
 
@@ -32,4 +33,9 @@ func (d *BaseDriver) QueryRow(query string, args ...interface{}) *sql.Row {
 // Close closes the database connection.
 func (d *BaseDriver) Close() error {
 	return d.DB.Close()
+}
+
+// Begin starts a new transaction.
+func (d *BaseDriver) Begin() (*sql.Tx, error) {
+	return d.DB.Begin()
 }

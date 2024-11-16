@@ -104,7 +104,7 @@ func createIndex(ch *cache) error {
 //
 //   - error: an error if the operation failed
 func setCacheSize(ch *cache) error {
-	pages := ch.cacheSize / ch.pageSixe
+	pages := ch.cacheSize / ch.pageSize
 
 	query := fmt.Sprintf("PRAGMA cache_size = %d;", pages)
 
@@ -181,7 +181,7 @@ func setDriver(ch *cache, driverFactory drivers.DriverFactory) error {
 // Returns:
 //   - error: an error if the operation failed
 func setPageSize(ch *cache) error {
-	_, err := ch.engine.Execute(fmt.Sprintf("PRAGMA page_size = %d;", ch.pageSixe))
+	_, err := ch.engine.Execute(fmt.Sprintf("PRAGMA page_size = %d;", ch.pageSize))
 	if err != nil {
 		return fmt.Errorf("setting page size: %w", err)
 	}
@@ -200,7 +200,7 @@ func setPageSize(ch *cache) error {
 //
 //   - error: an error if the operation failed
 func setMaxDbSize(ch *cache) error {
-	_, err := ch.engine.Execute(fmt.Sprintf("PRAGMA max_page_count = %d;", ch.dbSize/ch.pageSixe))
+	_, err := ch.engine.Execute(fmt.Sprintf("PRAGMA max_page_count = %d;", ch.dbSize/ch.pageSize))
 	if err != nil {
 		return fmt.Errorf("setting max page count: %w", err)
 	}

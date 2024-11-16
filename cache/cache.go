@@ -1,8 +1,10 @@
 package cache
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -10,11 +12,13 @@ import (
 
 	"github.com/lucasvillarinho/litepack/database"
 	"github.com/lucasvillarinho/litepack/database/drivers"
+	"github.com/lucasvillarinho/litepack/internal/helpers"
 	"github.com/lucasvillarinho/litepack/schedule"
 )
 
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
+	sync.RWMutex                    // RWMutex is used to synchronize access to the cache
 	scheduler    schedule.Scheduler // scheduler is used to schedule cache clearing by TTL
 	engine       drivers.Driver     // engine is the database driver
 	drive        drivers.DriverType // drive is the database driver type
@@ -23,7 +27,8 @@ type cache struct {
 	syncInterval schedule.Interval  // syncInterval is the cache sync interval
 	dbSize       int                // dbSize is the cache database size
 	cacheSize    int                // cacheSize is the cache size
-	pageSixe     int                // pageSize is the cache page size
+	pageSize     int                // pageSize is the cache page size
+	purgePercent float64            // percentPurge is the cache purge percentage
 }
 
 type Cache interface {
@@ -62,7 +67,8 @@ func NewCache(path string, opts ...Option) (Cache, error) {
 		drive:        drivers.DriverMattn,
 		cacheSize:    128 * 1024 * 1024, // 128 MB
 		dbSize:       128 * 1024 * 1024, // 128 MB
-		pageSixe:     4096,
+		pageSize:     4096,
+		purgePercent: 0.2, // 20%
 	}
 
 	for _, opt := range opts {
@@ -94,21 +100,68 @@ func NewCache(path string, opts ...Option) (Cache, error) {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) Set(key string, value []byte, ttl time.Duration) error {
-	query, args, err := squirrel.
-		Insert("cache").
-		Columns("key", "value", "expires_at", "last_accessed_at").
-		Values(key, value, time.Now().Add(ttl).In(ch.timezone), time.Now().In(ch.timezone)).
-		Suffix("ON CONFLICT(key) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at").
-		ToSql()
-	if err != nil {
-		return fmt.Errorf("error building query: %w", err)
+	retryFunc := func() error {
+		query, args, err := squirrel.
+			Insert("cache").
+			Columns("key", "value", "expires_at", "last_accessed_at").
+			Values(key, value, time.Now().Add(ttl).In(ch.timezone), time.Now().In(ch.timezone)).
+			Suffix("ON CONFLICT(key) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at").
+			ToSql()
+		if err != nil {
+			return fmt.Errorf("error building query: %w", err)
+		}
+
+		if _, err := ch.engine.Execute(query, args...); err != nil {
+			// If the database is full, purge the cache and try again.
+			if database.IsDatabaseFullError(err) {
+				if err := ch.PurgeDB(); err != nil {
+					return fmt.Errorf("error purging cache: %w", err)
+				}
+			}
+			return fmt.Errorf("error executing query: %w", err)
+		}
+
+		return nil
 	}
 
-	_, err = ch.engine.Execute(query, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := helpers.Retry(ctx, retryFunc, 3); err != nil {
+		return fmt.Errorf("error retrying set: %w", err)
+	}
+	return nil
+}
+
+// PurgeDB deletes a percentage of the cache entries.
+// The entries are deleted in ascending order of last accessed at timestamp (LRU).
+// The percentage must be between 0 and 1.
+func (ch *cache) PurgeDB() error {
+	tx, err := ch.engine.Begin()
 	if err != nil {
-		return fmt.Errorf("error executing query: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			err = fmt.Errorf("transaction failed due to panic: %v", p)
+		} else if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err := ch.PurgeWithTransaction(ch.purgePercent, tx); err != nil {
+		return fmt.Errorf("error purging cache: %w", err)
+	}
+
+	if err := ch.VacuumTransaction(tx); err != nil {
+		return fmt.Errorf("error vacuuming cache: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
 	return nil
 }
 
@@ -201,10 +254,11 @@ func (ch *cache) updateLastAccessedAt(key string) error {
 //
 // Parameters:
 //   - percent: the percentage of entries to delete
+//   - tx: the database transaction
 //
 // Returns:
 //   - error: an error if the operation failed
-func (ch *cache) Purge(percent float64) error {
+func (ch *cache) PurgeWithTransaction(percent float64, tx *sql.Tx) error {
 	if percent < 0 || percent > 1 {
 		return fmt.Errorf("invalid percentage: %f", percent)
 	}
@@ -218,7 +272,7 @@ func (ch *cache) Purge(percent float64) error {
 		return fmt.Errorf("building count query: %w", err)
 	}
 
-	err = ch.engine.QueryRow(countQuery, args...).Scan(&totalEntries)
+	err = tx.QueryRow(countQuery, args...).Scan(&totalEntries)
 	if err != nil {
 		return fmt.Errorf("failed to count entries: %w", err)
 	}
@@ -246,7 +300,7 @@ func (ch *cache) Purge(percent float64) error {
 		return fmt.Errorf("building delete query: %w", err)
 	}
 
-	_, err = ch.engine.Execute(deleteQuery, deleteArgs...)
+	_, err = tx.Exec(deleteQuery, deleteArgs...)
 	if err != nil {
 		return fmt.Errorf("executing purge query: %w", err)
 	}
@@ -261,8 +315,8 @@ func (ch *cache) Purge(percent float64) error {
 //   - error: an error if the operation failed
 //
 // WARNING: This operation can be slow for large databases.
-func (ch *cache) Vacuum() error {
-	_, err := ch.engine.Execute("VACUUM;")
+func (ch *cache) VacuumTransaction(tx *sql.Tx) error {
+	_, err := tx.Exec("VACUUM;")
 	if err != nil {
 		return fmt.Errorf("error vacuuming: %w", err)
 	}
