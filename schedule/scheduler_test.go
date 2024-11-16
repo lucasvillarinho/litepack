@@ -1,6 +1,7 @@
 package schedule
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -32,6 +33,8 @@ func TestNewScheduler(t *testing.T) {
 }
 
 func TestTask(t *testing.T) {
+
+	ctx := context.Background()
 	t.Run("should schedule a task successfully", func(t *testing.T) {
 		mock := &mockCron{}
 		timezone := time.UTC
@@ -41,12 +44,12 @@ func TestTask(t *testing.T) {
 		}
 		defer scheduler.Stop()
 
-		task := func() error {
+		task := func(ctx context.Context) error {
 			fmt.Println("Task executed")
 			return nil
 		}
 
-		err := scheduler.Task(EveryMinute, task)
+		err := scheduler.Task(ctx, EveryMinute, task)
 
 		assert.NoError(t, err, "Expected no error when scheduling a task")
 		assert.Len(t, mock.addFuncCalls, 1, "Expected one task to be scheduled")
@@ -70,12 +73,12 @@ func TestTask(t *testing.T) {
 		}
 		defer scheduler.Stop()
 
-		task := func() error {
+		task := func(context.Context) error {
 			fmt.Println("Task executed")
 			return nil
 		}
 
-		err := scheduler.Task(EveryMinute, task)
+		err := scheduler.Task(ctx, EveryMinute, task)
 
 		assert.Error(t, err, "Expected an error when AddFunc fails")
 		assert.EqualError(t, err, "failed to schedule task: mock AddFunc error")

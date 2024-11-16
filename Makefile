@@ -23,3 +23,9 @@ lint: build ## Run lint
 test:  ## Run tests
 	@go test -v -coverprofile=rawcover.out -json $$(go list ./...) 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests,empty-packages
 	@go test
+
+.PHONY: generate-sqlc-cache 
+generate-sqlc-cache:
+	@echo "Generating sqlc cache..."
+	@sqlc generate -f cache/sqlc.yaml
+	@echo "sqlc cache generated successfully"

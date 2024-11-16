@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -10,26 +11,27 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	liteCache, err := cache.NewCache("tests")
+	ctx := context.Background()
+	liteCache, err := cache.NewCache(ctx, "tests")
 	if err != nil {
 		panic(err)
 	}
 	defer liteCache.Destroy()
 
 	t.Run("Should successfully set cache entry ", func(t *testing.T) {
-		defer liteCache.Del("key")
+		defer liteCache.Del(ctx, "key")
 
-		err := liteCache.Set("key", []byte("test"), 10*time.Second)
+		err := liteCache.Set(ctx, "key", []byte("test"), 10*time.Second)
 
 		assert.Nil(t, err, "Expected to set cache entry without error, but got: %v", err)
 	})
 
 	t.Run("Should successfully get cache entry ", func(t *testing.T) {
-		defer liteCache.Del("key")
+		defer liteCache.Del(ctx, "key")
 
-		_ = liteCache.Set("key", []byte("test"), 10*time.Second)
+		_ = liteCache.Set(ctx, "key", []byte("test"), 10*time.Second)
 
-		value, err := liteCache.Get("key")
+		value, err := liteCache.Get(ctx, "key")
 
 		assert.Nil(t, err, "Expected to get cache entry without error, but got: %v", err)
 		assert.Equal(
@@ -42,14 +44,14 @@ func TestCache(t *testing.T) {
 	})
 
 	t.Run("Should successfully delete cache entry ", func(t *testing.T) {
-		_ = liteCache.Set("key", []byte("test"), 10*time.Second)
+		_ = liteCache.Set(ctx, "key", []byte("test"), 10*time.Second)
 
-		err := liteCache.Del("key")
+		err := liteCache.Del(ctx, "key")
 		if err != nil {
 			t.Errorf("Expected to delete cache entry without error, but got: %v", err)
 		}
 
-		value, err := liteCache.Get("key")
+		value, err := liteCache.Get(ctx, "key")
 
 		assert.Nil(t, err, "Expected to get cache entry without error, but got: %v", err)
 		assert.Nil(t, value, "Expected to get cache entry with value nil, but got: %v", value)

@@ -1,6 +1,7 @@
 package schedule
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -21,7 +22,7 @@ const (
 
 // Scheduler is an interface for scheduling tasks.
 type Scheduler interface {
-	Task(scheduleTime Interval, task func() error) error
+	Task(ctx context.Context, scheduleTime Interval, task func(context.Context) error) error
 	GetTimezone() *time.Location
 	Stop()
 	HasTasks() bool
@@ -71,9 +72,9 @@ func NewScheduler(timezone *time.Location) (Scheduler, error) {
 //
 // Returns:
 //   - error: an error if the operation failed
-func (sc *scheduler) Task(scheduleTime Interval, task func() error) error {
+func (sc *scheduler) Task(ctx context.Context, scheduleTime Interval, task func(context.Context) error) error {
 	_, err := sc.cron.AddFunc(string(scheduleTime), func() {
-		if err := task(); err != nil {
+		if err := task(ctx); err != nil {
 			fmt.Printf("Error executing scheduled task: %v\n", err)
 		}
 	})

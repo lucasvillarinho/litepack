@@ -1,12 +1,19 @@
 package drivers
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 type MockEngine struct {
 	QueryErr        error
-	queryResultRows *sql.Rows
-	queryRowResult  *sql.Row
+	QueryErrors     map[string]error
+	QueryResultRows *sql.Rows
+	QueryRowResult  *sql.Row
+	PrepareQuery    string
+	PrepareErr      error
 	ExecutedQuery   string
+	ExecutedQueries []string
 	ExecutedArgs    []interface{}
 	BeginCalled     bool
 	BeginError      error
@@ -20,31 +27,59 @@ type MockTx struct {
 	ExecArgs    [][]interface{}
 }
 
-func (m *MockEngine) Execute(query string, args ...interface{}) (sql.Result, error) {
+func (m *MockEngine) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	m.ExecutedQueries = append(m.ExecutedQueries, query)
 	m.ExecutedQuery = query
 	m.ExecutedArgs = args
+
+	if err, ok := m.QueryErrors[query]; ok {
+		return nil, err
+	}
+
 	return nil, m.QueryErr
 }
 
-func (m *MockEngine) Query(query string, args ...interface{}) (*sql.Rows, error) {
+func (m *MockEngine) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	m.ExecutedQueries = append(m.ExecutedQueries, query)
 	m.ExecutedQuery = query
 	m.ExecutedArgs = args
 	if m.QueryErr != nil {
 		return nil, m.QueryErr
 	}
-	return m.queryResultRows, nil
+	return m.QueryResultRows, nil
 }
 
-func (m *MockEngine) QueryRow(query string, args ...interface{}) *sql.Row {
+func (m *MockEngine) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	m.ExecutedQueries = append(m.ExecutedQueries, query)
 	m.ExecutedQuery = query
 	m.ExecutedArgs = args
-	return m.queryRowResult
+	return m.QueryRowResult
 }
 
+// Simula o método PrepareContext
+func (m *MockEngine) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
+	m.PrepareQuery = query
+	return nil, m.PrepareErr
+}
+
+// Simula o fechamento do banco
 func (m *MockEngine) Close() error {
 	return nil
 }
 
+// Simula o início de uma transação
+func (m *MockEngine) Begin() (*sql.Tx, error) {
+	m.BeginCalled = true
+	if m.BeginError != nil {
+		return nil, m.BeginError
+	}
+	if m.TxMock == nil {
+		m.TxMock = &MockTx{}
+	}
+	return &sql.Tx{}, nil
+}
+
+// Métodos do MockTx
 func (m *MockTx) Exec(query string, args ...interface{}) (sql.Result, error) {
 	m.ExecQueries = append(m.ExecQueries, query)
 	m.ExecArgs = append(m.ExecArgs, args)
@@ -59,17 +94,4 @@ func (m *MockTx) Commit() error {
 func (m *MockTx) Rollback() error {
 	m.RolledBack = true
 	return nil
-}
-
-func (m *MockEngine) Begin() (*sql.Tx, error) {
-	m.BeginCalled = true
-	if m.BeginError != nil {
-		return nil, m.BeginError
-	}
-
-	if m.TxMock == nil {
-		m.TxMock = &MockTx{}
-	}
-
-	return &sql.Tx{}, nil
 }

@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS cache (
+    key TEXT PRIMARY KEY,
+    value BLOB,
+    expires_at TIMESTAMP NOT NULL,
+    last_accessed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
