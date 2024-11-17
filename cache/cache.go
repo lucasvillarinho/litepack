@@ -47,7 +47,8 @@ type Cache interface {
 // The cache is automatically created if it does not exist.
 //
 // Parameters:
-//   - path: the path of the cache database
+//   - ctx: the context
+//   - path: the path to the cache database
 //   - opts: the cache options
 //
 // Configuration defaults:
@@ -78,13 +79,10 @@ func NewCache(ctx context.Context, path string, opts ...Option) (Cache, error) {
 		opt(c)
 	}
 
-	engine, err := drivers.NewDriverFactory().GetDriver(c.drive, c.dsn)
+	err := c.SetupEngine(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error creating driver: %w", err)
+		return nil, fmt.Errorf("error setting up engine: %w", err)
 	}
-	c.engine = engine
-
-	c.queries = queries.New(c.engine)
 
 	err = c.setupDatabase(ctx)
 	if err != nil {
@@ -129,6 +127,25 @@ func (ch *cache) setupDatabase(ctx context.Context) error {
 	if _, err := ch.engine.ExecContext(ctx, fmt.Sprintf("PRAGMA cache_size = %d;", ch.cacheSize/ch.pageSize)); err != nil {
 		return fmt.Errorf("setting cache size: %w", err)
 	}
+
+	return nil
+}
+
+// SetupEngine creates the cache engine.
+//
+// Parameters:
+//   - ctx: the context
+//
+// Returns:
+//   - error: an error if the operation failed
+func (ch *cache) SetupEngine(_ context.Context) error {
+	engine, err := drivers.NewDriverFactory().GetDriver(ch.drive, ch.dsn)
+	if err != nil {
+		return fmt.Errorf("error creating driver: %w", err)
+	}
+	ch.engine = engine
+
+	ch.queries = queries.New(ch.engine)
 
 	return nil
 }
