@@ -79,7 +79,7 @@ func NewCache(ctx context.Context, path string, opts ...Option) (Cache, error) {
 		opt(c)
 	}
 
-	err := c.SetupEngine(ctx)
+	err := c.setupEngine(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up engine: %w", err)
 	}
@@ -89,7 +89,7 @@ func NewCache(ctx context.Context, path string, opts ...Option) (Cache, error) {
 		return nil, fmt.Errorf("error setting up database: %w", err)
 	}
 
-	err = c.SetupTable(ctx)
+	err = c.setupTable(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up table: %w", err)
 	}
@@ -102,6 +102,7 @@ func NewCache(ctx context.Context, path string, opts ...Option) (Cache, error) {
 	return c, nil
 }
 
+// setupDatabase sets up the cache database with the given configuration.
 func (ch *cache) setupDatabase(ctx context.Context) error {
 	// Set journal mode to WAL
 	if _, err := ch.engine.ExecContext(ctx, "PRAGMA journal_mode=WAL;"); err != nil {
@@ -131,14 +132,8 @@ func (ch *cache) setupDatabase(ctx context.Context) error {
 	return nil
 }
 
-// SetupEngine creates the cache engine.
-//
-// Parameters:
-//   - ctx: the context
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) SetupEngine(_ context.Context) error {
+// SetupEngine creates a new database engine with the given driver and DSN.
+func (ch *cache) setupEngine(_ context.Context) error {
 	engine, err := drivers.NewDriverFactory().GetDriver(ch.drive, ch.dsn)
 	if err != nil {
 		return fmt.Errorf("error creating driver: %w", err)
@@ -150,14 +145,8 @@ func (ch *cache) SetupEngine(_ context.Context) error {
 	return nil
 }
 
-// SetupTable creates the cache table if it does not exist.
-//
-// Parameters:
-//   - ctx: the context
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) SetupTable(ctx context.Context) error {
+// setupTable creates the cache table if it does not exist.
+func (ch *cache) setupTable(ctx context.Context) error {
 	err := ch.queries.CreateDatabase(ctx)
 	if err != nil {
 		return fmt.Errorf("error creating table: %w", err)
