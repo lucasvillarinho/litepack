@@ -66,12 +66,29 @@ func TestSetupDatabase(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("should set up the database successfully", func(t *testing.T) {
-		mockEngine := &mocks.MockEngine{}
+		driverMock := mocks.NewDriverMock(t)
+
+		// Configurando as expectativas do mock
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA synchronous = NORMAL;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA max_page_count = 32768;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA page_size = 4096;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA cache_size = 32768;").
+			Return(nil, nil)
 
 		c := &cache{
 			drive:     drivers.DriverMattn,
 			dsn:       "mock_dsn",
-			engine:    mockEngine,
+			engine:    driverMock,
 			dbSize:    128 * 1024 * 1024, // 128 MB
 			pageSize:  4096,              // 4 KB
 			cacheSize: 128 * 1024 * 1024, // 128 MB
@@ -80,194 +97,154 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.NoError(t, err, "Expected no error during database setup")
-		assert.Equal(
-			t,
-			"PRAGMA journal_mode=WAL;",
-			mockEngine.ExecutedQueries[0],
-			"Expected journal_mode to be set to WAL",
-		)
-		assert.Equal(
-			t,
-			"PRAGMA synchronous = NORMAL;",
-			mockEngine.ExecutedQueries[1],
-			"Expected synchronous mode to be set to NORMAL",
-		)
-		assert.Equal(
-			t,
-			"PRAGMA max_page_count = 32768;",
-			mockEngine.ExecutedQueries[2],
-			"Expected max page count query to match",
-		)
-		assert.Equal(
-			t,
-			"PRAGMA page_size = 4096;",
-			mockEngine.ExecutedQueries[3],
-			"Expected page size query to match",
-		)
-		assert.Equal(
-			t,
-			"PRAGMA cache_size = 32768;",
-			mockEngine.ExecutedQueries[4],
-			"Expected cache size query to match",
-		)
+		driverMock.AssertExpectations(t)
 	})
 
 	t.Run("should return an error when enabling WAL mode fails", func(t *testing.T) {
-		mockEngine := &mocks.MockEngine{
-			QueryErrors: map[string]error{
-				"PRAGMA journal_mode=WAL;": fmt.Errorf("mock error enabling WAL mode"),
-			},
-		}
+		driverMock := mocks.NewDriverMock(t)
+
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
+			Return(nil, fmt.Errorf("mock error enabling WAL mode"))
 
 		c := &cache{
 			drive:  drivers.DriverMattn,
 			dsn:    "mock_dsn",
-			engine: mockEngine,
+			engine: driverMock,
 		}
 
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when enabling WAL mode fails")
-		assert.Equal(
-			t,
-			"PRAGMA journal_mode=WAL;",
-			mockEngine.ExecutedQueries[0],
-			"Expected journal_mode to be set to WAL",
-		)
-		assert.Contains(
-			t,
-			err.Error(),
-			"enabling WAL mode: mock error enabling WAL mode",
-			"Error message should match",
-		)
+		assert.Contains(t, err.Error(), "mock error enabling WAL mode")
+		driverMock.AssertExpectations(t)
 	})
 
 	t.Run("should return an error when setting synchronous mode fails", func(t *testing.T) {
-		mockEngine := &mocks.MockEngine{
-			QueryErrors: map[string]error{
-				"PRAGMA synchronous = NORMAL;": fmt.Errorf("mock error setting synchronous mode"),
-			},
-		}
+		driverMock := mocks.NewDriverMock(t)
+
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA synchronous = NORMAL;").
+			Return(nil, fmt.Errorf("mock error setting synchronous mode"))
 
 		c := &cache{
 			drive:  drivers.DriverMattn,
 			dsn:    "mock_dsn",
-			engine: mockEngine,
+			engine: driverMock,
 		}
 
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting synchronous mode fails")
-		assert.Equal(
-			t,
-			"PRAGMA journal_mode=WAL;",
-			mockEngine.ExecutedQueries[0],
-			"Expected journal_mode to be set to WAL",
-		)
-		assert.Contains(
-			t,
-			err.Error(),
-			"setting synchronous mode: mock error setting synchronous mode",
-			"Error message should match",
-		)
+		assert.Contains(t, err.Error(), "mock error setting synchronous mode")
+		driverMock.AssertExpectations(t)
 	})
 
-	t.Run("should return an error when setting max page count fails", func(t *testing.T) {
-		mockEngine := &mocks.MockEngine{
-			QueryErrors: map[string]error{
-				"PRAGMA max_page_count = 32768;": fmt.Errorf("mock error setting max page count"),
-			},
-		}
+	t.Run("should return error when setting maximum page count fails", func(t *testing.T) {
+		driverMock := mocks.NewDriverMock(t)
+
+		pageSize := 4096
+		dbSize := 128 * 1024 * 1024
+		maxPageCount := dbSize / pageSize
+
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA synchronous = NORMAL;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, fmt.Sprintf("PRAGMA max_page_count = %d;", maxPageCount)).
+			Return(nil, fmt.Errorf("mock error"))
 
 		c := &cache{
-			drive:     drivers.DriverMattn,
-			dsn:       "mock_dsn",
-			engine:    mockEngine,
-			dbSize:    128 * 1024 * 1024, // 128 MB
-			cacheSize: 128 * 1024 * 1024, // 128 MB
-			pageSize:  4096,              // 4 KB
+			drive:    drivers.DriverMattn,
+			dsn:      "mock_dsn",
+			engine:   driverMock,
+			dbSize:   dbSize,
+			pageSize: pageSize,
 		}
 
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting max page count fails")
-		assert.Equal(
-			t,
-			"PRAGMA max_page_count = 32768;",
-			mockEngine.ExecutedQueries[2],
-			"Expected max page count query to match",
-		)
-		assert.Contains(
-			t,
-			err.Error(),
-			"setting max page count: mock error setting max page count",
-			"Error message should match",
-		)
+		assert.Contains(t, err.Error(), "setting max page count: mock error")
+		driverMock.AssertExpectations(t)
 	})
 
-	t.Run("should return an error when setting page size fails", func(t *testing.T) {
-		mockEngine := &mocks.MockEngine{
-			QueryErrors: map[string]error{
-				"PRAGMA page_size = 4096;": fmt.Errorf("mock error setting page size"),
-			},
-		}
+	t.Run("should return error when setting page size fails", func(t *testing.T) {
+		driverMock := mocks.NewDriverMock(t)
+
+		pageSize := 4096
+
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA synchronous = NORMAL;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, fmt.Sprintf("PRAGMA max_page_count = %d;", 32768)).
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, fmt.Sprintf("PRAGMA page_size = %d;", pageSize)).
+			Return(nil, fmt.Errorf("mock error"))
 
 		c := &cache{
-			drive:     drivers.DriverMattn,
-			dsn:       "mock_dsn",
-			engine:    mockEngine,
-			dbSize:    128 * 1024 * 1024, // 128 MB
-			cacheSize: 128 * 1024 * 1024, // 128 MB
-			pageSize:  4096,              // 4 KB
+			drive:    drivers.DriverMattn,
+			dsn:      "mock_dsn",
+			engine:   driverMock,
+			pageSize: pageSize,
 		}
 
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting page size fails")
-		assert.Equal(
-			t,
-			"PRAGMA page_size = 4096;",
-			mockEngine.ExecutedQueries[3],
-			"Expected page size query to match",
-		)
-		assert.Contains(
-			t,
-			err.Error(),
-			"setting page size: mock error setting page size",
-			"Error message should match",
-		)
+		assert.Contains(t, err.Error(), "setting page size: mock error")
+		driverMock.AssertExpectations(t)
 	})
 
-	t.Run("should return an error when setting cache size fails", func(t *testing.T) {
-		mockEngine := &mocks.MockEngine{
-			QueryErrors: map[string]error{
-				"PRAGMA cache_size = 32768;": fmt.Errorf("mock error setting cache size"),
-			},
-		}
+	t.Run("should return error when setting cache size fails", func(t *testing.T) {
+		driverMock := mocks.NewDriverMock(t)
+
+		pageSize := 4096
+		cacheSize := 128 * 1024 * 1024
+		dbSize := 128 * 1024 * 1024 // Define o tamanho do banco
+		expectedCacheSize := cacheSize / pageSize
+		expectedMaxPageCount := dbSize / pageSize
+
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, "PRAGMA synchronous = NORMAL;").
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, fmt.Sprintf("PRAGMA max_page_count = %d;", expectedMaxPageCount)).
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, fmt.Sprintf("PRAGMA page_size = %d;", pageSize)).
+			Return(nil, nil)
+		driverMock.EXPECT().
+			ExecContext(ctx, fmt.Sprintf("PRAGMA cache_size = %d;", expectedCacheSize)).
+			Return(nil, fmt.Errorf("mock error"))
 
 		c := &cache{
 			drive:     drivers.DriverMattn,
 			dsn:       "mock_dsn",
-			engine:    mockEngine,
-			dbSize:    128 * 1024 * 1024, // 128 MB
-			cacheSize: 128 * 1024 * 1024, // 128 MB
-			pageSize:  4096,              // 4 KB
+			engine:    driverMock,
+			pageSize:  pageSize,
+			cacheSize: cacheSize,
+			dbSize:    dbSize,
 		}
 
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting cache size fails")
-		assert.Equal(
-			t,
-			"PRAGMA cache_size = 32768;",
-			mockEngine.ExecutedQueries[4],
-			"Expected cache size query to match",
-		)
-		assert.Contains(
-			t,
-			err.Error(),
-			"setting cache size: mock error setting cache size",
-			"Error message should match",
-		)
+		assert.Contains(t, err.Error(), "setting cache size: mock error")
+		driverMock.AssertExpectations(t)
 	})
 }

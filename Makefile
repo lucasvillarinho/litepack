@@ -25,8 +25,14 @@ test:  ## Run tests
 	@go test
 
 
-.PHONY: generate-sqlc-cache 
-generate-sqlc-cache:
+.PHONY: gen-sqlc-cache
+gen-sqlc-cache:
 	@echo "Generating sqlc cache..."
 	@sqlc generate -f cache/configs/sqlc.yaml
 	@echo "sqlc cache generated successfully"
+
+gen-mocks-database:
+	@echo "Generating mocks with mockery..."
+	@mockery --config database/configs/.mockery.yaml
+	@echo "Mocks generated successfully"
+

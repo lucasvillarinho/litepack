@@ -78,8 +78,8 @@ WHERE key = ? AND expires_at > ?
 `
 
 type GetValueParams struct {
-	Key       string    `json:"key"`
 	ExpiresAt time.Time `json:"expires_at"`
+	Key       string    `json:"key"`
 }
 
 func (q *Queries) GetValue(ctx context.Context, arg GetValueParams) ([]byte, error) {
@@ -145,10 +145,10 @@ SET value = excluded.value,
 `
 
 type UpsertCacheParams struct {
-	Key            string    `json:"key"`
-	Value          []byte    `json:"value"`
 	ExpiresAt      time.Time `json:"expires_at"`
 	LastAccessedAt time.Time `json:"last_accessed_at"`
+	Key            string    `json:"key"`
+	Value          []byte    `json:"value"`
 }
 
 func (q *Queries) UpsertCache(ctx context.Context, arg UpsertCacheParams) error {
