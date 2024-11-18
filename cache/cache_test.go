@@ -26,10 +26,15 @@ func TestCacheGet(t *testing.T) {
 
 	t.Run("Should return value if key exists and is not expired", func(t *testing.T) {
 		expectedValue := "cached_data"
+		key := "existing_key"
 
 		mock.ExpectQuery(`SELECT value FROM cache WHERE`).
-			WithArgs("existing_key", sqlmock.AnyArg()).
-			WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(expectedValue))
+			WithArgs(key, sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"value"}).
+				AddRow(expectedValue))
+		mock.ExpectExec(`UPDATE cache SET last_accessed_at = \? WHERE key = \?`).
+			WithArgs(sqlmock.AnyArg(), key).
+			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		value, err := ch.Get(context.Background(), "existing_key")
 
@@ -58,6 +63,24 @@ func TestCacheGet(t *testing.T) {
 
 		assert.Error(t, err, "Expected error for failing query")
 		assert.Nil(t, value, "Expected nil value for failing query")
+	})
+
+	t.Run("Should return nil if UPDATE query fails", func(t *testing.T) {
+		expectedValue := "cached_data"
+		key := "existing_key"
+
+		mock.ExpectQuery(`SELECT value FROM cache WHERE`).
+			WithArgs(key, sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"value"}).
+				AddRow(expectedValue))
+		mock.ExpectExec(`UPDATE cache SET last_accessed_at = \? WHERE key = \?`).
+			WithArgs(sqlmock.AnyArg(), key).
+			WillReturnError(sql.ErrConnDone)
+
+		value, err := ch.Get(context.Background(), key)
+
+		assert.Equal(t, []byte(expectedValue), value, "Expected cached value to match")
+		assert.Nil(t, err, "Expected no error for failing UPDATE query")
 	})
 }
 
@@ -112,7 +135,7 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when enabling WAL mode fails")
-		assert.Equal(t, err.Error(), "mock error enabling WAL mode")
+		assert.Equal(t, "enabling WAL mode: mock error enabling WAL mode", err.Error())
 		driverMock.AssertExpectations(t)
 	})
 
@@ -122,6 +145,7 @@ func TestSetupDatabase(t *testing.T) {
 		driverMock.EXPECT().
 			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
 			Return(nil, nil)
+
 		driverMock.EXPECT().
 			ExecContext(ctx, "PRAGMA synchronous = NORMAL;").
 			Return(nil, fmt.Errorf("mock error setting synchronous mode"))
@@ -134,7 +158,7 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting synchronous mode fails")
-		assert.Equal(t, err.Error(), "mock error setting synchronous mode")
+		assert.Equal(t, "setting synchronous mode: mock error setting synchronous mode", err.Error())
 		driverMock.AssertExpectations(t)
 	})
 
@@ -165,7 +189,7 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting max page count fails")
-		assert.Equal(t, err.Error(), "setting max page count: mock error")
+		assert.Equal(t, "setting max page count: mock error", err.Error())
 		driverMock.AssertExpectations(t)
 	})
 
@@ -201,7 +225,7 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting page size fails")
-		assert.Equal(t, err.Error(), "setting page size: mock error")
+		assert.Equal(t, "setting page size: mock error", err.Error())
 		driverMock.AssertExpectations(t)
 	})
 
@@ -241,14 +265,13 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting cache size fails")
-		assert.Equal(t, err.Error(), "setting cache size: mock error")
+		assert.Equal(t, "setting cache size: mock error", err.Error())
 		driverMock.AssertExpectations(t)
 	})
 }
 
 func TestSetupEngine(t *testing.T) {
 	t.Run("should set up the engine successfully", func(t *testing.T) {
-		driverMock := mocks.NewDriverMock(t)
 
 		c := &cache{
 			dsn: "mock_dsn",
@@ -257,7 +280,7 @@ func TestSetupEngine(t *testing.T) {
 		err := c.setupEngine(context.Background())
 
 		assert.NoError(t, err, "Expected no error when setting up the engine")
-		assert.Equal(t, driverMock, c.engine, "Engine should be set correctly")
+		assert.NotNil(t, c.engine, "Engine should be initialized")
 		assert.NotNil(t, c.queries, "Queries should be initialized")
 	})
 }
@@ -319,7 +342,8 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 		assert.NoError(t, err, "Expected no error while starting transaction")
 
 		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
-			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).
+				AddRow(100))
 		mock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
 			WithArgs(20).
 			WillReturnResult(sqlmock.NewResult(1, 20))
@@ -380,7 +404,8 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 		assert.NoError(t, err, "Expected no error while starting transaction")
 
 		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
-			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).
+				AddRow(100))
 		mock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
 			WithArgs(20).
 			WillReturnError(fmt.Errorf("mock delete error"))
