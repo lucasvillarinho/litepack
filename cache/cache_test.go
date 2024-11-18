@@ -68,7 +68,6 @@ func TestSetupDatabase(t *testing.T) {
 	t.Run("should set up the database successfully", func(t *testing.T) {
 		driverMock := mocks.NewDriverMock(t)
 
-		// Configurando as expectativas do mock
 		driverMock.EXPECT().
 			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
 			Return(nil, nil)
@@ -89,9 +88,9 @@ func TestSetupDatabase(t *testing.T) {
 			drive:     drivers.DriverMattn,
 			dsn:       "mock_dsn",
 			engine:    driverMock,
-			dbSize:    128 * 1024 * 1024, // 128 MB
-			pageSize:  4096,              // 4 KB
-			cacheSize: 128 * 1024 * 1024, // 128 MB
+			dbSize:    128 * 1024 * 1024,
+			pageSize:  4096,
+			cacheSize: 128 * 1024 * 1024,
 		}
 
 		err := c.setupDatabase(ctx)
@@ -180,10 +179,9 @@ func TestSetupDatabase(t *testing.T) {
 
 		pageSize := 4096
 		cacheSize := 128 * 1024 * 1024
-		dbSize := 128 * 1024 * 1024 // Define o tamanho do banco corretamente
+		dbSize := 128 * 1024 * 1024
 		expectedMaxPageCount := dbSize / pageSize
 
-		// Configura as expectativas do mock
 		driverMock.EXPECT().
 			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
 			Return(nil, nil)
@@ -201,9 +199,9 @@ func TestSetupDatabase(t *testing.T) {
 			drive:     drivers.DriverMattn,
 			dsn:       "mock_dsn",
 			engine:    driverMock,
-			dbSize:    dbSize,    // Adiciona o dbSize correto
-			pageSize:  pageSize,  // Define o pageSize
-			cacheSize: cacheSize, // Define o cacheSize
+			dbSize:    dbSize,
+			pageSize:  pageSize,
+			cacheSize: cacheSize,
 		}
 
 		err := c.setupDatabase(ctx)
@@ -218,7 +216,7 @@ func TestSetupDatabase(t *testing.T) {
 
 		pageSize := 4096
 		cacheSize := 128 * 1024 * 1024
-		dbSize := 128 * 1024 * 1024 // Define o tamanho do banco
+		dbSize := 128 * 1024 * 1024
 		expectedCacheSize := cacheSize / pageSize
 		expectedMaxPageCount := dbSize / pageSize
 
