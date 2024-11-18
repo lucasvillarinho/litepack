@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lucasvillarinho/litepack/cache/queries"
-	"github.com/lucasvillarinho/litepack/database/drivers"
 	mocks "github.com/lucasvillarinho/litepack/database/drivers/mocks"
 )
 
@@ -85,7 +84,6 @@ func TestSetupDatabase(t *testing.T) {
 			Return(nil, nil)
 
 		c := &cache{
-			drive:     drivers.DriverMattn,
 			dsn:       "mock_dsn",
 			engine:    driverMock,
 			dbSize:    128 * 1024 * 1024,
@@ -107,7 +105,6 @@ func TestSetupDatabase(t *testing.T) {
 			Return(nil, fmt.Errorf("mock error enabling WAL mode"))
 
 		c := &cache{
-			drive:  drivers.DriverMattn,
 			dsn:    "mock_dsn",
 			engine: driverMock,
 		}
@@ -115,7 +112,7 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when enabling WAL mode fails")
-		assert.Contains(t, err.Error(), "mock error enabling WAL mode")
+		assert.Equal(t, err.Error(), "mock error enabling WAL mode")
 		driverMock.AssertExpectations(t)
 	})
 
@@ -130,7 +127,6 @@ func TestSetupDatabase(t *testing.T) {
 			Return(nil, fmt.Errorf("mock error setting synchronous mode"))
 
 		c := &cache{
-			drive:  drivers.DriverMattn,
 			dsn:    "mock_dsn",
 			engine: driverMock,
 		}
@@ -138,7 +134,7 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting synchronous mode fails")
-		assert.Contains(t, err.Error(), "mock error setting synchronous mode")
+		assert.Equal(t, err.Error(), "mock error setting synchronous mode")
 		driverMock.AssertExpectations(t)
 	})
 
@@ -160,7 +156,6 @@ func TestSetupDatabase(t *testing.T) {
 			Return(nil, fmt.Errorf("mock error"))
 
 		c := &cache{
-			drive:    drivers.DriverMattn,
 			dsn:      "mock_dsn",
 			engine:   driverMock,
 			dbSize:   dbSize,
@@ -170,7 +165,7 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting max page count fails")
-		assert.Contains(t, err.Error(), "setting max page count: mock error")
+		assert.Equal(t, err.Error(), "setting max page count: mock error")
 		driverMock.AssertExpectations(t)
 	})
 
@@ -196,7 +191,6 @@ func TestSetupDatabase(t *testing.T) {
 			Return(nil, fmt.Errorf("mock error"))
 
 		c := &cache{
-			drive:     drivers.DriverMattn,
 			dsn:       "mock_dsn",
 			engine:    driverMock,
 			dbSize:    dbSize,
@@ -207,7 +201,7 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting page size fails")
-		assert.Contains(t, err.Error(), "setting page size: mock error")
+		assert.Equal(t, err.Error(), "setting page size: mock error")
 		driverMock.AssertExpectations(t)
 	})
 
@@ -237,7 +231,6 @@ func TestSetupDatabase(t *testing.T) {
 			Return(nil, fmt.Errorf("mock error"))
 
 		c := &cache{
-			drive:     drivers.DriverMattn,
 			dsn:       "mock_dsn",
 			engine:    driverMock,
 			pageSize:  pageSize,
@@ -248,7 +241,158 @@ func TestSetupDatabase(t *testing.T) {
 		err := c.setupDatabase(ctx)
 
 		assert.Error(t, err, "Expected an error when setting cache size fails")
-		assert.Contains(t, err.Error(), "setting cache size: mock error")
+		assert.Equal(t, err.Error(), "setting cache size: mock error")
 		driverMock.AssertExpectations(t)
 	})
+}
+
+func TestSetupEngine(t *testing.T) {
+	t.Run("should set up the engine successfully", func(t *testing.T) {
+		driverMock := mocks.NewDriverMock(t)
+
+		c := &cache{
+			dsn: "mock_dsn",
+		}
+
+		err := c.setupEngine(context.Background())
+
+		assert.NoError(t, err, "Expected no error when setting up the engine")
+		assert.Equal(t, driverMock, c.engine, "Engine should be set correctly")
+		assert.NotNil(t, c.queries, "Queries should be initialized")
+	})
+}
+
+func TestCacheDel(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err, "Expected no error while creating sqlmock")
+	defer db.Close()
+
+	ch := &cache{
+		timezone: time.UTC,
+		queries:  queries.New(db),
+	}
+
+	t.Run("Should delete the key successfully", func(t *testing.T) {
+		mock.ExpectExec(`DELETE FROM cache WHERE key = ?`).
+			WithArgs("existing_key").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		err := ch.Del(context.Background(), "existing_key")
+
+		assert.NoError(t, err, "Expected no error while deleting the key")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("Should return nil if the key does not exist", func(t *testing.T) {
+		mock.ExpectExec(`DELETE FROM cache WHERE key = ?`).
+			WithArgs("non_existing_key").
+			WillReturnResult(sqlmock.NewResult(1, 0))
+
+		err := ch.Del(context.Background(), "non_existing_key")
+
+		assert.NoError(t, err, "Expected no error for non-existing key")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("Should return error if DELETE query fails", func(t *testing.T) {
+		mock.ExpectExec(`DELETE FROM cache WHERE key = ?`).
+			WithArgs("error_key").
+			WillReturnError(fmt.Errorf("mock delete error"))
+
+		err := ch.Del(context.Background(), "error_key")
+
+		assert.Error(t, err, "Expected an error for failing DELETE query")
+		assert.Equal(t, err.Error(), "deleting key: mock delete error", "Error message should match")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+}
+
+func TestCachePurgeWithTransaction(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err, "Expected no error while creating sqlmock")
+	defer db.Close()
+
+	t.Run("Should purge the correct percentage of entries", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		tx, err := db.Begin()
+		assert.NoError(t, err, "Expected no error while starting transaction")
+
+		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+		mock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
+			WithArgs(20).
+			WillReturnResult(sqlmock.NewResult(1, 20))
+
+		ch := &cache{
+			queries: queries.New(tx),
+		}
+
+		err = ch.PurgeWithTransaction(context.Background(), 0.2, tx)
+
+		assert.NoError(t, err, "Expected no error while purging entries")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("Should return nil if there are no entries to delete", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		tx, err := db.Begin()
+		assert.NoError(t, err, "Expected no error while starting transaction")
+
+		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+		ch := &cache{
+			queries: queries.New(tx),
+		}
+
+		err = ch.PurgeWithTransaction(context.Background(), 0.2, tx)
+
+		assert.NoError(t, err, "Expected no error while purging entries")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("Should return error if SELECT query fails", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		tx, err := db.Begin()
+		assert.NoError(t, err, "Expected no error while starting transaction")
+
+		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
+			WillReturnError(fmt.Errorf("mock select error"))
+
+		ch := &cache{
+			queries: queries.New(tx),
+		}
+
+		err = ch.PurgeWithTransaction(context.Background(), 0.2, tx)
+
+		assert.Error(t, err, "Expected an error for failing SELECT query")
+		assert.Equal(t, err.Error(), "error to count entries: mock select error", "Error message should match")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("Should return error if DELETE query fails", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		tx, err := db.Begin()
+		assert.NoError(t, err, "Expected no error while starting transaction")
+
+		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+		mock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
+			WithArgs(20).
+			WillReturnError(fmt.Errorf("mock delete error"))
+
+		ch := &cache{
+			queries: queries.New(tx),
+		}
+
+		err = ch.PurgeWithTransaction(context.Background(), 0.2, tx)
+
+		assert.Error(t, err, "Expected an error for failing DELETE query")
+		assert.Equal(t, err.Error(), "error to delete entries: mock delete error", "Error message should match")
+	})
+
 }

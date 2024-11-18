@@ -56,7 +56,7 @@ func (q *Queries) DeleteKey(ctx context.Context, key string) error {
 	return err
 }
 
-const deleteKeys = `-- name: DeleteKeys :exec
+const deleteKeysByLimit = `-- name: DeleteKeysByLimit :exec
 DELETE FROM cache
 WHERE key IN (
     SELECT key
@@ -66,8 +66,8 @@ WHERE key IN (
 )
 `
 
-func (q *Queries) DeleteKeys(ctx context.Context, limit int64) error {
-	_, err := q.exec(ctx, q.deleteKeysStmt, deleteKeys, limit)
+func (q *Queries) DeleteKeysByLimit(ctx context.Context, limit int64) error {
+	_, err := q.exec(ctx, q.deleteKeysByLimitStmt, deleteKeysByLimit, limit)
 	return err
 }
 
@@ -78,8 +78,8 @@ WHERE key = ? AND expires_at > ?
 `
 
 type GetValueParams struct {
-	ExpiresAt time.Time `json:"expires_at"`
 	Key       string    `json:"key"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 func (q *Queries) GetValue(ctx context.Context, arg GetValueParams) ([]byte, error) {
@@ -145,10 +145,10 @@ SET value = excluded.value,
 `
 
 type UpsertCacheParams struct {
-	ExpiresAt      time.Time `json:"expires_at"`
-	LastAccessedAt time.Time `json:"last_accessed_at"`
 	Key            string    `json:"key"`
 	Value          []byte    `json:"value"`
+	ExpiresAt      time.Time `json:"expires_at"`
+	LastAccessedAt time.Time `json:"last_accessed_at"`
 }
 
 func (q *Queries) UpsertCache(ctx context.Context, arg UpsertCacheParams) error {

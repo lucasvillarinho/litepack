@@ -24,7 +24,6 @@ type cache struct {
 	queries      *queries.Queries
 	syncInterval schedule.Interval
 	dsn          string
-	drive        drivers.DriverType
 	dbSize       int
 	cacheSize    int
 	pageSize     int
@@ -67,7 +66,6 @@ func NewCache(ctx context.Context, path string, opts ...Option) (Cache, error) {
 		dsn:          fmt.Sprintf("%s_lpack_cache.db", path),
 		syncInterval: schedule.EveryMinute,
 		timezone:     time.UTC,
-		drive:        drivers.DriverMattn,
 		cacheSize:    128 * 1024 * 1024, // 128 MB
 		dbSize:       128 * 1024 * 1024, // 128 MB
 		pageSize:     4096,
@@ -134,7 +132,7 @@ func (ch *cache) setupDatabase(ctx context.Context) error {
 
 // SetupEngine creates a new database engine with the given driver and DSN.
 func (ch *cache) setupEngine(_ context.Context) error {
-	engine, err := drivers.NewDriverFactory().GetDriver(ch.drive, ch.dsn)
+	engine, err := database.NewEngine(database.DriverMattn, ch.dsn)
 	if err != nil {
 		return fmt.Errorf("error creating driver: %w", err)
 	}
@@ -319,7 +317,7 @@ func (ch *cache) PurgeWithTransaction(ctx context.Context, percent float64, tx *
 		return nil
 	}
 
-	err = queriesWityTx.DeleteKeys(ctx, totalEntriesToDelete)
+	err = queriesWityTx.DeleteKeysByLimit(ctx, totalEntriesToDelete)
 	if err != nil {
 		return fmt.Errorf("error to delete entries: %w", err)
 	}

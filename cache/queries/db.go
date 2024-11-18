@@ -36,8 +36,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteKeyStmt, err = db.PrepareContext(ctx, deleteKey); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteKey: %w", err)
 	}
-	if q.deleteKeysStmt, err = db.PrepareContext(ctx, deleteKeys); err != nil {
-		return nil, fmt.Errorf("error preparing query DeleteKeys: %w", err)
+	if q.deleteKeysByLimitStmt, err = db.PrepareContext(ctx, deleteKeysByLimit); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteKeysByLimit: %w", err)
 	}
 	if q.getValueStmt, err = db.PrepareContext(ctx, getValue); err != nil {
 		return nil, fmt.Errorf("error preparing query GetValue: %w", err)
@@ -76,9 +76,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteKeyStmt: %w", cerr)
 		}
 	}
-	if q.deleteKeysStmt != nil {
-		if cerr := q.deleteKeysStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing deleteKeysStmt: %w", cerr)
+	if q.deleteKeysByLimitStmt != nil {
+		if cerr := q.deleteKeysByLimitStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteKeysByLimitStmt: %w", cerr)
 		}
 	}
 	if q.getValueStmt != nil {
@@ -144,7 +144,7 @@ type Queries struct {
 	createDatabaseStmt       *sql.Stmt
 	deleteExpiredCacheStmt   *sql.Stmt
 	deleteKeyStmt            *sql.Stmt
-	deleteKeysStmt           *sql.Stmt
+	deleteKeysByLimitStmt    *sql.Stmt
 	getValueStmt             *sql.Stmt
 	selectKeysToDeleteStmt   *sql.Stmt
 	updateLastAccessedAtStmt *sql.Stmt
@@ -159,7 +159,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createDatabaseStmt:       q.createDatabaseStmt,
 		deleteExpiredCacheStmt:   q.deleteExpiredCacheStmt,
 		deleteKeyStmt:            q.deleteKeyStmt,
-		deleteKeysStmt:           q.deleteKeysStmt,
+		deleteKeysByLimitStmt:    q.deleteKeysByLimitStmt,
 		getValueStmt:             q.getValueStmt,
 		selectKeysToDeleteStmt:   q.selectKeysToDeleteStmt,
 		updateLastAccessedAtStmt: q.updateLastAccessedAtStmt,

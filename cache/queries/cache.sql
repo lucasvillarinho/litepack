@@ -24,7 +24,7 @@ FROM cache
 ORDER BY last_accessed_at ASC
 LIMIT ?;
 
--- name: DeleteKeys :exec
+-- name: DeleteKeysByLimit :exec
 DELETE FROM cache
 WHERE key IN (
     SELECT key
