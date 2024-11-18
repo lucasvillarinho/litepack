@@ -3,7 +3,7 @@ package cache
 import (
 	"time"
 
-	"github.com/lucasvillarinho/litepack/schedule"
+	"github.com/lucasvillarinho/litepack/internal/schedule"
 )
 
 // CacheOption is a function that configures a cache instance.

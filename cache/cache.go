@@ -13,7 +13,7 @@ import (
 	"github.com/lucasvillarinho/litepack/database"
 	"github.com/lucasvillarinho/litepack/database/drivers"
 	"github.com/lucasvillarinho/litepack/internal/helpers"
-	"github.com/lucasvillarinho/litepack/schedule"
+	"github.com/lucasvillarinho/litepack/internal/schedule"
 )
 
 // cache is a simple key-value store backed by an SQLite database.

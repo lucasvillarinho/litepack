@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lucasvillarinho/litepack/schedule"
+	"github.com/lucasvillarinho/litepack/internal/schedule"
 )
 
 // startSyncClearByTTL starts the cache cleaner task.

@@ -179,7 +179,11 @@ func TestSetupDatabase(t *testing.T) {
 		driverMock := mocks.NewDriverMock(t)
 
 		pageSize := 4096
+		cacheSize := 128 * 1024 * 1024
+		dbSize := 128 * 1024 * 1024 // Define o tamanho do banco corretamente
+		expectedMaxPageCount := dbSize / pageSize
 
+		// Configura as expectativas do mock
 		driverMock.EXPECT().
 			ExecContext(ctx, "PRAGMA journal_mode=WAL;").
 			Return(nil, nil)
@@ -187,17 +191,19 @@ func TestSetupDatabase(t *testing.T) {
 			ExecContext(ctx, "PRAGMA synchronous = NORMAL;").
 			Return(nil, nil)
 		driverMock.EXPECT().
-			ExecContext(ctx, fmt.Sprintf("PRAGMA max_page_count = %d;", 32768)).
+			ExecContext(ctx, fmt.Sprintf("PRAGMA max_page_count = %d;", expectedMaxPageCount)).
 			Return(nil, nil)
 		driverMock.EXPECT().
 			ExecContext(ctx, fmt.Sprintf("PRAGMA page_size = %d;", pageSize)).
 			Return(nil, fmt.Errorf("mock error"))
 
 		c := &cache{
-			drive:    drivers.DriverMattn,
-			dsn:      "mock_dsn",
-			engine:   driverMock,
-			pageSize: pageSize,
+			drive:     drivers.DriverMattn,
+			dsn:       "mock_dsn",
+			engine:    driverMock,
+			dbSize:    dbSize,    // Adiciona o dbSize correto
+			pageSize:  pageSize,  // Define o pageSize
+			cacheSize: cacheSize, // Define o cacheSize
 		}
 
 		err := c.setupDatabase(ctx)
