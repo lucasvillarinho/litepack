@@ -474,3 +474,37 @@ func TestVacuumWithTransaction(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 }
+
+func TestSetupTable(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err, "Expected no error while creating sqlmock")
+	defer db.Close()
+
+	t.Run("should create the table successfully", func(t *testing.T) {
+		mock.ExpectExec("CREATE TABLE IF NOT EXISTS cache").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		ch := &cache{
+			queries: queries.New(db),
+		}
+
+		err := ch.setupTable(context.Background())
+		assert.NoError(t, err, "Expected no error while creating the table")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("should return an error if table creation fails", func(t *testing.T) {
+		mock.ExpectExec("CREATE TABLE IF NOT EXISTS cache").
+			WillReturnError(fmt.Errorf("mock create table error"))
+
+		ch := &cache{
+			queries: queries.New(db),
+		}
+
+		err := ch.setupTable(context.Background())
+
+		assert.Error(t, err, "Expected an error when table creation fails")
+		assert.Equal(t, "error creating table: mock create table error", err.Error(), "Expected error message to match")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+}
