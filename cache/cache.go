@@ -347,7 +347,8 @@ func (ch *cache) vacuumWithTransaction(tx *sql.Tx) error {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) clearExpiredItems(ctx context.Context) error {
-	if err := ch.queries.DeleteExpiredCache(ctx, time.Now().In(ch.timezone)); err != nil {
+	err := ch.queries.DeleteExpiredCache(ctx, time.Now().In(ch.timezone))
+	if err != nil {
 		return fmt.Errorf("error clear: %w", err)
 	}
 
