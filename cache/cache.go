@@ -220,17 +220,22 @@ func (ch *cache) PurgeDB(ctx context.Context) error {
 		}
 	}()
 
-	if err := ch.PurgeWithTransaction(ctx, ch.purgePercent, tx); err != nil {
+	err = ch.purgeWithTransaction(ctx, ch.purgePercent, tx)
+
+	if err != nil {
 		return fmt.Errorf("error purging cache: %w", err)
 	}
 
-	if err := ch.VacuumWithTransaction(tx); err != nil {
+	err = ch.vacuumWithTransaction(tx)
+	if err != nil {
 		return fmt.Errorf("error vacuuming cache: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error to commit transaction: %w", err)
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("error committing transaction: %w", err)
 	}
+
 	return nil
 }
 
@@ -289,18 +294,8 @@ func (ch *cache) Del(ctx context.Context, key string) error {
 	return nil
 }
 
-// Purge deletes a percentage of the cache entries.
-// The entries are deleted in ascending order of last accessed at timestamp (LRU).
-// The percentage must be between 0 and 1.
-//
-// Parameters:
-//   - ctx: the context
-//   - percent: the percentage of entries to delete
-//   - tx: the database transaction
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) PurgeWithTransaction(ctx context.Context, percent float64, tx *sql.Tx) error {
+// PurgeWithTransaction deletes a percentage of the cache entries within a transaction.
+func (ch *cache) purgeWithTransaction(ctx context.Context, percent float64, tx *sql.Tx) error {
 	if percent < 0 || percent > 1 {
 		return fmt.Errorf("invalid percentage: %f", percent)
 	}
@@ -309,7 +304,7 @@ func (ch *cache) PurgeWithTransaction(ctx context.Context, percent float64, tx *
 
 	totalEntries, err := queriesWityTx.CountEntries(ctx)
 	if err != nil {
-		return fmt.Errorf("error to count entries: %w", err)
+		return fmt.Errorf("count entries: %w", err)
 	}
 
 	totalEntriesToDelete := int64(float64(totalEntries) * percent)
@@ -319,7 +314,7 @@ func (ch *cache) PurgeWithTransaction(ctx context.Context, percent float64, tx *
 
 	err = queriesWityTx.DeleteKeysByLimit(ctx, totalEntriesToDelete)
 	if err != nil {
-		return fmt.Errorf("error to delete entries: %w", err)
+		return fmt.Errorf("delete entries: %w", err)
 	}
 
 	return nil
@@ -331,10 +326,10 @@ func (ch *cache) PurgeWithTransaction(ctx context.Context, percent float64, tx *
 //   - error: an error if the operation failed
 //
 // WARNING: This operation can be slow for large databases.
-func (ch *cache) VacuumWithTransaction(tx *sql.Tx) error {
+func (ch *cache) vacuumWithTransaction(tx *sql.Tx) error {
 	_, err := tx.Exec("VACUUM;")
 	if err != nil {
-		return fmt.Errorf("error vacuuming: %w", err)
+		return fmt.Errorf("vacuuming: %w", err)
 	}
 	return nil
 }

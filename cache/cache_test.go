@@ -352,7 +352,7 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 			queries: queries.New(tx),
 		}
 
-		err = ch.PurgeWithTransaction(context.Background(), 0.2, tx)
+		err = ch.purgeWithTransaction(context.Background(), 0.2, tx)
 
 		assert.NoError(t, err, "Expected no error while purging entries")
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
@@ -368,7 +368,7 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 			queries: queries.New(tx),
 		}
 
-		err = ch.PurgeWithTransaction(context.Background(), 1.2, tx)
+		err = ch.purgeWithTransaction(context.Background(), 1.2, tx)
 
 		assert.Error(t, err, "Expected an error for invalid percentage")
 		assert.Equal(t, "invalid percentage: 1.200000", err.Error(), "Error message should match")
@@ -387,7 +387,7 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 			queries: queries.New(tx),
 		}
 
-		err = ch.PurgeWithTransaction(context.Background(), 0.2, tx)
+		err = ch.purgeWithTransaction(context.Background(), 0.2, tx)
 
 		assert.NoError(t, err, "Expected no error while purging entries")
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
@@ -406,10 +406,10 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 			queries: queries.New(tx),
 		}
 
-		err = ch.PurgeWithTransaction(context.Background(), 0.2, tx)
+		err = ch.purgeWithTransaction(context.Background(), 0.2, tx)
 
 		assert.Error(t, err, "Expected an error for failing SELECT query")
-		assert.Equal(t, err.Error(), "error to count entries: mock select error", "Error message should match")
+		assert.Equal(t, "count entries: mock select error", err.Error(), "Error message should match")
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 
@@ -430,10 +430,10 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 			queries: queries.New(tx),
 		}
 
-		err = ch.PurgeWithTransaction(context.Background(), 0.2, tx)
+		err = ch.purgeWithTransaction(context.Background(), 0.2, tx)
 
 		assert.Error(t, err, "Expected an error for failing DELETE query")
-		assert.Equal(t, err.Error(), "error to delete entries: mock delete error", "Error message should match")
+		assert.Equal(t, "delete entries: mock delete error", err.Error(), "Error message should match")
 	})
 
 }
@@ -452,7 +452,7 @@ func TestVacuumWithTransaction(t *testing.T) {
 		assert.NoError(t, err, "Expected no error while starting transaction")
 
 		ch := &cache{}
-		err = ch.VacuumWithTransaction(tx)
+		err = ch.vacuumWithTransaction(tx)
 
 		assert.NoError(t, err, "Expected no error while executing VACUUM")
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
@@ -467,10 +467,10 @@ func TestVacuumWithTransaction(t *testing.T) {
 		assert.NoError(t, err, "Expected no error while starting transaction")
 
 		ch := &cache{}
-		err = ch.VacuumWithTransaction(tx)
+		err = ch.vacuumWithTransaction(tx)
 
 		assert.Error(t, err, "Expected an error when VACUUM fails")
-		assert.Contains(t, err.Error(), "error vacuuming: mock vacuum error", "Expected error message to match")
+		assert.Equal(t, "vacuuming: mock vacuum error", err.Error(), "Expected error message to match")
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 }
@@ -505,6 +505,128 @@ func TestSetupTable(t *testing.T) {
 
 		assert.Error(t, err, "Expected an error when table creation fails")
 		assert.Equal(t, "error creating table: mock create table error", err.Error(), "Expected error message to match")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+}
+
+func TestPurgeDB(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err, "Expected no error while creating sqlmock")
+	defer db.Close()
+
+	t.Run("should purge and vacuum the database successfully", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+
+		mock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
+			WithArgs(20).
+			WillReturnResult(sqlmock.NewResult(1, 20))
+
+		mock.ExpectExec("VACUUM;").
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		mock.ExpectCommit()
+
+		ch := &cache{
+			engine:       db,
+			queries:      queries.New(db),
+			purgePercent: 0.2,
+		}
+
+		err := ch.PurgeDB(context.Background())
+		assert.NoError(t, err, "Expected no error while purging and vacuuming the database")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("should return an error if transaction begin fails", func(t *testing.T) {
+		mock.ExpectBegin().WillReturnError(fmt.Errorf("mock begin error"))
+
+		ch := &cache{
+			engine: db,
+		}
+
+		err := ch.PurgeDB(context.Background())
+		assert.Error(t, err, "Expected an error when transaction begin fails")
+		assert.Equal(t, "error to begin transaction: mock begin error", err.Error(), "Expected error message to match")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("should return an error if purging fails", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
+			WillReturnError(fmt.Errorf("mock purge error"))
+
+		mock.ExpectRollback()
+
+		ch := &cache{
+			engine:       db,
+			queries:      queries.New(db),
+			purgePercent: 0.5,
+		}
+
+		err := ch.PurgeDB(context.Background())
+
+		assert.Error(t, err, "Expected an error when purging fails")
+		assert.Equal(t, "error purging cache: count entries: mock purge error", err.Error(), "Expected error message to match")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("should return an error if vacuuming fails", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+
+		mock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
+			WithArgs(50).
+			WillReturnResult(sqlmock.NewResult(1, 50))
+
+		mock.ExpectExec("VACUUM;").
+			WillReturnError(fmt.Errorf("mock vacuum error"))
+
+		mock.ExpectRollback()
+
+		ch := &cache{
+			engine:       db,
+			queries:      queries.New(db),
+			purgePercent: 0.5,
+		}
+
+		err := ch.PurgeDB(context.Background())
+
+		assert.Error(t, err, "Expected an error when vacuuming fails")
+		assert.Equal(t, "error vacuuming cache: vacuuming: mock vacuum error", err.Error(), "Expected error message to match")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("should return an error if commit fails", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+
+		mock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
+			WithArgs(50).
+			WillReturnResult(sqlmock.NewResult(1, 50))
+
+		mock.ExpectExec("VACUUM;").
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		mock.ExpectCommit().WillReturnError(fmt.Errorf("mock commit error"))
+
+		ch := &cache{
+			engine:       db,
+			queries:      queries.New(db),
+			purgePercent: 0.5,
+		}
+
+		err := ch.PurgeDB(context.Background())
+
+		assert.Error(t, err, "Expected an error when commit fails")
+		assert.Equal(t, "error committing transaction: mock commit error", err.Error(), "Expected error message to match")
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 }
