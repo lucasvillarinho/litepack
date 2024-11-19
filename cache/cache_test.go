@@ -358,6 +358,22 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 
+	t.Run("Should return error if percentage is invalid", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		tx, err := db.Begin()
+		assert.NoError(t, err, "Expected no error while starting transaction")
+
+		ch := &cache{
+			queries: queries.New(tx),
+		}
+
+		err = ch.PurgeWithTransaction(context.Background(), 1.2, tx)
+
+		assert.Error(t, err, "Expected an error for invalid percentage")
+		assert.Equal(t, "invalid percentage: 1.200000", err.Error(), "Error message should match")
+	})
+
 	t.Run("Should return nil if there are no entries to delete", func(t *testing.T) {
 		mock.ExpectBegin()
 
