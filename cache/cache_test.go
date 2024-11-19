@@ -437,3 +437,40 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 	})
 
 }
+
+func TestVacuumWithTransaction(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err, "Expected no error while creating sqlmock")
+	defer db.Close()
+
+	t.Run("should execute VACUUM successfully", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectExec("VACUUM;").
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		tx, err := db.Begin()
+		assert.NoError(t, err, "Expected no error while starting transaction")
+
+		ch := &cache{}
+		err = ch.VacuumWithTransaction(tx)
+
+		assert.NoError(t, err, "Expected no error while executing VACUUM")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("should return an error if VACUUM fails", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectExec("VACUUM;").
+			WillReturnError(fmt.Errorf("mock vacuum error"))
+
+		tx, err := db.Begin()
+		assert.NoError(t, err, "Expected no error while starting transaction")
+
+		ch := &cache{}
+		err = ch.VacuumWithTransaction(tx)
+
+		assert.Error(t, err, "Expected an error when VACUUM fails")
+		assert.Contains(t, err.Error(), "error vacuuming: mock vacuum error", "Expected error message to match")
+		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+}
