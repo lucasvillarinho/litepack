@@ -103,27 +103,32 @@ func NewCache(ctx context.Context, path string, opts ...Option) (Cache, error) {
 // setupDatabase sets up the cache database with the given configuration.
 func (ch *cache) setupDatabase(ctx context.Context) error {
 	// Set journal mode to WAL
-	if _, err := ch.engine.ExecContext(ctx, "PRAGMA journal_mode=WAL;"); err != nil {
+	_, err := ch.engine.ExecContext(ctx, "PRAGMA journal_mode=WAL;")
+	if err != nil {
 		return fmt.Errorf("enabling WAL mode: %w", err)
 	}
 
 	// Set synchronous mode to NORMAL
-	if _, err := ch.engine.ExecContext(ctx, "PRAGMA synchronous = NORMAL;"); err != nil {
+	_, err = ch.engine.ExecContext(ctx, "PRAGMA synchronous = NORMAL;")
+	if err != nil {
 		return fmt.Errorf("setting synchronous mode: %w", err)
 	}
 
 	// Set the maximum page count for the database
-	if _, err := ch.engine.ExecContext(ctx, fmt.Sprintf("PRAGMA max_page_count = %d;", ch.dbSize/ch.pageSize)); err != nil {
+	_, err = ch.engine.ExecContext(ctx, fmt.Sprintf("PRAGMA max_page_count = %d;", ch.dbSize/ch.pageSize))
+	if err != nil {
 		return fmt.Errorf("setting max page count: %w", err)
 	}
 
 	// Set the page size in bytes
-	if _, err := ch.engine.ExecContext(ctx, fmt.Sprintf("PRAGMA page_size = %d;", ch.pageSize)); err != nil {
+	_, err = ch.engine.ExecContext(ctx, fmt.Sprintf("PRAGMA page_size = %d;", ch.pageSize))
+	if err != nil {
 		return fmt.Errorf("setting page size: %w", err)
 	}
 
 	// Set the cache size in pages
-	if _, err := ch.engine.ExecContext(ctx, fmt.Sprintf("PRAGMA cache_size = %d;", ch.cacheSize/ch.pageSize)); err != nil {
+	_, err = ch.engine.ExecContext(ctx, fmt.Sprintf("PRAGMA cache_size = %d;", ch.cacheSize/ch.pageSize))
+	if err != nil {
 		return fmt.Errorf("setting cache size: %w", err)
 	}
 
