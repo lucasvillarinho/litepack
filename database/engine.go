@@ -20,7 +20,7 @@ var supportedDrivers = map[DriverType]func(string) (drivers.Driver, error){
 	DriverModernc: drivers.NewModerncDriver,
 }
 
-// NewDriverFactory creates a new instance of DriverFactory.
+// NewEngine creates a new instance of DriverFactory.
 func NewEngine(dt DriverType, dsn string) (drivers.Driver, error) {
 	createDriverFunc, exists := supportedDrivers[dt]
 	if !exists {

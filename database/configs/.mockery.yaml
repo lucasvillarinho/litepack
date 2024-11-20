@@ -1,7 +1,7 @@
 with-expecter: True
 filename: "{{ .InterfaceName | snakecase }}_mock.go"
 mockname: "{{ .InterfaceName }}Mock"
-dir: "./database/drivers/mocks"
+dir: "./database/mocks"
 outpkg: "mocks"
 packages:
   github.com/lucasvillarinho/litepack/database/drivers:
@@ -9,6 +9,8 @@ packages:
       Driver:                
         config:
           recursive: false
-      DriverFactory:
+  github.com/lucasvillarinho/litepack/database:
+    interfaces:
+      Database:
         config:
           recursive: false

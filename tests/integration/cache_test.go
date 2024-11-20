@@ -12,11 +12,11 @@ import (
 
 func TestCache(t *testing.T) {
 	ctx := context.Background()
-	liteCache, err := cache.NewCache(ctx, "tests")
+	liteCache, err := cache.NewCache(ctx, "")
 	if err != nil {
 		panic(err)
 	}
-	defer liteCache.Destroy()
+	defer liteCache.Destroy(ctx)
 
 	t.Run("Should successfully set cache entry ", func(t *testing.T) {
 		defer liteCache.Del(ctx, "key")

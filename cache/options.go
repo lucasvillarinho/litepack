@@ -22,9 +22,3 @@ func WithTimezone(location *time.Location) Option {
 		c.timezone = location
 	}
 }
-
-func WithCacheSize(size int) Option {
-	return func(c *cache) {
-		c.cacheSize = size
-	}
-}

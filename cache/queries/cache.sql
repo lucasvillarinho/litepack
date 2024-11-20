@@ -33,7 +33,7 @@ WHERE key IN (
     LIMIT ?
 );
 
--- name: CreateDatabase :exec
+-- name: CreateCacheDatabase :exec
 CREATE TABLE IF NOT EXISTS cache (
     key TEXT PRIMARY KEY,
     value BLOB,

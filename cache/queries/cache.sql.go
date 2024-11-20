@@ -22,7 +22,7 @@ func (q *Queries) CountEntries(ctx context.Context) (int64, error) {
 	return count, err
 }
 
-const createDatabase = `-- name: CreateDatabase :exec
+const createCacheDatabase = `-- name: CreateCacheDatabase :exec
 CREATE TABLE IF NOT EXISTS cache (
     key TEXT PRIMARY KEY,
     value BLOB,
@@ -31,8 +31,8 @@ CREATE TABLE IF NOT EXISTS cache (
 )
 `
 
-func (q *Queries) CreateDatabase(ctx context.Context) error {
-	_, err := q.exec(ctx, q.createDatabaseStmt, createDatabase)
+func (q *Queries) CreateCacheDatabase(ctx context.Context) error {
+	_, err := q.exec(ctx, q.createCacheDatabaseStmt, createCacheDatabase)
 	return err
 }
 

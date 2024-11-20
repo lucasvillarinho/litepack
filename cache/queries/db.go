@@ -27,8 +27,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.countEntriesStmt, err = db.PrepareContext(ctx, countEntries); err != nil {
 		return nil, fmt.Errorf("error preparing query CountEntries: %w", err)
 	}
-	if q.createDatabaseStmt, err = db.PrepareContext(ctx, createDatabase); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateDatabase: %w", err)
+	if q.createCacheDatabaseStmt, err = db.PrepareContext(ctx, createCacheDatabase); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateCacheDatabase: %w", err)
 	}
 	if q.deleteExpiredCacheStmt, err = db.PrepareContext(ctx, deleteExpiredCache); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteExpiredCache: %w", err)
@@ -61,9 +61,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing countEntriesStmt: %w", cerr)
 		}
 	}
-	if q.createDatabaseStmt != nil {
-		if cerr := q.createDatabaseStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing createDatabaseStmt: %w", cerr)
+	if q.createCacheDatabaseStmt != nil {
+		if cerr := q.createCacheDatabaseStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createCacheDatabaseStmt: %w", cerr)
 		}
 	}
 	if q.deleteExpiredCacheStmt != nil {
@@ -141,7 +141,7 @@ type Queries struct {
 	db                       DBTX
 	tx                       *sql.Tx
 	countEntriesStmt         *sql.Stmt
-	createDatabaseStmt       *sql.Stmt
+	createCacheDatabaseStmt  *sql.Stmt
 	deleteExpiredCacheStmt   *sql.Stmt
 	deleteKeyStmt            *sql.Stmt
 	deleteKeysByLimitStmt    *sql.Stmt
@@ -156,7 +156,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		db:                       tx,
 		tx:                       tx,
 		countEntriesStmt:         q.countEntriesStmt,
-		createDatabaseStmt:       q.createDatabaseStmt,
+		createCacheDatabaseStmt:  q.createCacheDatabaseStmt,
 		deleteExpiredCacheStmt:   q.deleteExpiredCacheStmt,
 		deleteKeyStmt:            q.deleteKeyStmt,
 		deleteKeysByLimitStmt:    q.deleteKeysByLimitStmt,
