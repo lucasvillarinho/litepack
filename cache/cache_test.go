@@ -135,33 +135,47 @@ func TestCacheDel(t *testing.T) {
 	})
 }
 
-func TestCreateCacheTable(t *testing.T) {
-	db, mock, err := sqlmock.New()
+func TestSetupCache(t *testing.T) {
+
+	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err, "Expected no error while creating sqlmock")
 	defer db.Close()
 
-	t.Run("should create the table successfully", func(t *testing.T) {
-		mock.ExpectExec("CREATE TABLE IF NOT EXISTS cache").
+	t.Run("should create the cache table successfully", func(t *testing.T) {
+		sqlMock.ExpectExec("(?i)CREATE TABLE IF NOT EXISTS cache").
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
+		dbMock := mocks.NewDatabaseMock(t)
+		dbMock.EXPECT().
+			GetEngine(mock.Anything).
+			Return(db)
+
 		ch := &cache{
-			queries: queries.New(db),
+			queries:  queries.New(db),
+			Database: dbMock,
 		}
 
-		err := ch.createCacheTable(context.Background())
-		assert.NoError(t, err, "Expected no error while creating the table")
-		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+		err := ch.setupCache(context.Background())
+
+		assert.NoError(t, err, "Expected no error while creating the cache table")
+		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 
 	t.Run("should return an error if table creation fails", func(t *testing.T) {
-		mock.ExpectExec("CREATE TABLE IF NOT EXISTS cache").
+		sqlMock.ExpectExec("(?i)CREATE TABLE IF NOT EXISTS cache").
 			WillReturnError(fmt.Errorf("mock create table error"))
 
+		dbMock := mocks.NewDatabaseMock(t)
+		dbMock.EXPECT().
+			GetEngine(mock.Anything).
+			Return(db)
+
 		ch := &cache{
-			queries: queries.New(db),
+			queries:  queries.New(db),
+			Database: dbMock,
 		}
 
-		err := ch.createCacheTable(context.Background())
+		err := ch.setupCache(context.Background())
 
 		assert.Error(t, err, "Expected an error when table creation fails")
 		assert.Equal(
@@ -170,7 +184,7 @@ func TestCreateCacheTable(t *testing.T) {
 			err.Error(),
 			"Expected error message to match",
 		)
-		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
+		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 }
 

@@ -22,3 +22,11 @@ func WithTimezone(location *time.Location) Option {
 		c.timezone = location
 	}
 }
+
+// WithPath sets the path to the cache database.
+// The cache is automatically created if it does not exist.
+func WithPath(path string) Option {
+	return func(c *cache) {
+		c.path = path
+	}
+}

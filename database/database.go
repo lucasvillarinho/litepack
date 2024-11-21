@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/lucasvillarinho/litepack/database/drivers"
+	"github.com/lucasvillarinho/litepack/internal/helpers"
 )
 
 type database struct {
@@ -35,14 +36,19 @@ type Database interface {
 }
 
 // NewDatabase creates a new database instance with the given DSN and applies any provided options.
-func NewDatabase(ctx context.Context, dsn string, options ...Option) (*database, error) {
+func NewDatabase(ctx context.Context, path, dbName string, options ...Option) (*database, error) {
 	cfg := &config{}
 	db := &database{
-		dsn: dsn,
 		cfg: cfg,
 	}
 
-	err := db.setEngine()
+	dsn, err := helpers.CreateDSN(path, dbName)
+	if err != nil {
+		return nil, fmt.Errorf("error creating DSN: %w", err)
+	}
+	db.dsn = dsn
+
+	err = db.setEngine()
 	if err != nil {
 		return nil, fmt.Errorf("error setting up engine: %w", err)
 	}

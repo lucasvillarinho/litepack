@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -21,10 +20,12 @@ type cache struct {
 	timezone     *time.Location
 	queries      *queries.Queries
 	syncInterval schedule.Interval
-	dsn          string
+	path         string
 	purgePercent float64
 	purgeTimeout time.Duration
-	sync.RWMutex
+	dbName       string
+	dbOptions    []database.Option
+
 	database.Database
 }
 
@@ -43,7 +44,6 @@ type Cache interface {
 //
 // Parameters:
 //   - ctx: the context
-//   - path: the path to the cache database
 //   - opts: the cache options
 //
 // Returns:
@@ -57,48 +57,44 @@ type Cache interface {
 // Configuration options:
 //   - WithSyncInterval: sets a custom sync interval for the cache.
 //   - WithTimezone: sets a custom timezone for the cache.
-func NewCache(ctx context.Context, path string, opts ...Option) (Cache, error) {
+func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	c := &cache{
 		syncInterval: schedule.EveryMinute,
 		timezone:     time.UTC,
-		purgePercent: 0.2, // 20%
-		purgeTimeout: 30 * time.Second,
+		purgePercent: 0.2,              // 20%
+		purgeTimeout: 30 * time.Second, // 30 seconds
+		dbName:       "lpack_cache.db",
+		dbOptions: []database.Option{
+			database.WithDBSize(512 * 1024 * 1024),   // 512 MB
+			database.WithCacheSize(64 * 1024 * 1024), // 64 MB
+			database.WithPageSize(4096),              // 4 KB
+		},
 	}
-
-	dsn, err := helpers.CreateDSN(path)
-	if err != nil {
-		return nil, fmt.Errorf("error creating DSN: %w", err)
-	}
-	c.dsn = dsn
 
 	for _, opt := range opts {
 		opt(c)
 	}
 
-	// Create the cache instance.
-	db, err := database.NewDatabase(ctx, c.dsn,
-		database.WithDBSize(128*1024*1024),
-		database.WithCacheSize(128*1024*1024),
-		database.WithPageSize(4096))
+	database, err := database.NewDatabase(ctx, c.path, c.dbName, c.dbOptions...)
 	if err != nil {
-		return nil, fmt.Errorf("error creating database: %w", err)
+		return nil, err
 	}
-	c.Database = db
+	c.Database = database
 
-	// Set up the cache queries.
-	c.queries = queries.New(c.Database.GetEngine(ctx))
-
-	// Set up the cache table.
-	err = c.createCacheTable(ctx)
+	err = c.setupCache(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error setting up table: %w", err)
+		return nil, fmt.Errorf("error setting up cache: %w", err)
 	}
 
 	return c, nil
 }
 
-// setupTable creates the cache table if it does not exist.
-func (ch *cache) createCacheTable(ctx context.Context) error {
+// setupCache sets up the cache with the given configuration.
+func (ch *cache) setupCache(ctx context.Context) error {
+	// Set up the cache queries.
+	ch.queries = queries.New(ch.Database.GetEngine(ctx))
+
+	// create the cache table.
 	err := ch.queries.CreateCacheDatabase(ctx)
 	if err != nil {
 		return fmt.Errorf("error creating table: %w", err)
@@ -144,6 +140,7 @@ func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Dur
 		return nil
 	}
 
+	// Retry the set operation if the database is full
 	if err := helpers.Retry(ctx, retryFunc, 2); err != nil {
 		return fmt.Errorf("error retrying set: %w", err)
 	}
