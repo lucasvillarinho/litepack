@@ -14,7 +14,7 @@ DELETE FROM cache
 WHERE key = ?;
 
 
--- name: CountEntries :one
+-- name: CacheCountEntries :one
 SELECT COUNT(*)
 FROM cache;
 

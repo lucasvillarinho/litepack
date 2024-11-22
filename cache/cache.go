@@ -235,7 +235,7 @@ func (ch *cache) purgeEntriesByPercentage(ctx context.Context, tx *sql.Tx, perce
 
 	queriesWityTx := queries.New(tx)
 
-	totalEntries, err := queriesWityTx.CountEntries(ctx)
+	totalEntries, err := queriesWityTx.CacheCountEntries(ctx)
 	if err != nil {
 		return fmt.Errorf("count entries: %w", err)
 	}

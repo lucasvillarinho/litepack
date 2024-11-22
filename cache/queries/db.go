@@ -24,8 +24,8 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
-	if q.countEntriesStmt, err = db.PrepareContext(ctx, countEntries); err != nil {
-		return nil, fmt.Errorf("error preparing query CountEntries: %w", err)
+	if q.cacheCountEntriesStmt, err = db.PrepareContext(ctx, cacheCountEntries); err != nil {
+		return nil, fmt.Errorf("error preparing query CacheCountEntries: %w", err)
 	}
 	if q.createCacheDatabaseStmt, err = db.PrepareContext(ctx, createCacheDatabase); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateCacheDatabase: %w", err)
@@ -56,9 +56,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 
 func (q *Queries) Close() error {
 	var err error
-	if q.countEntriesStmt != nil {
-		if cerr := q.countEntriesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing countEntriesStmt: %w", cerr)
+	if q.cacheCountEntriesStmt != nil {
+		if cerr := q.cacheCountEntriesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing cacheCountEntriesStmt: %w", cerr)
 		}
 	}
 	if q.createCacheDatabaseStmt != nil {
@@ -140,7 +140,7 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 type Queries struct {
 	db                       DBTX
 	tx                       *sql.Tx
-	countEntriesStmt         *sql.Stmt
+	cacheCountEntriesStmt    *sql.Stmt
 	createCacheDatabaseStmt  *sql.Stmt
 	deleteExpiredCacheStmt   *sql.Stmt
 	deleteKeyStmt            *sql.Stmt
@@ -155,7 +155,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
 		db:                       tx,
 		tx:                       tx,
-		countEntriesStmt:         q.countEntriesStmt,
+		cacheCountEntriesStmt:    q.cacheCountEntriesStmt,
 		createCacheDatabaseStmt:  q.createCacheDatabaseStmt,
 		deleteExpiredCacheStmt:   q.deleteExpiredCacheStmt,
 		deleteKeyStmt:            q.deleteKeyStmt,
