@@ -28,7 +28,6 @@ type Option func(*database, *config)
 
 type Database interface {
 	Destroy(ctx context.Context) error
-	IsDBFullError(err error) bool
 	Close(ctx context.Context) error
 	Vacuum(ctx context.Context, tx *sql.Tx) error
 	GetEngine(ctx context.Context) drivers.Driver
@@ -243,4 +242,16 @@ func (db *database) ExecWithTx(ctx context.Context, fn func(*sql.Tx) error) erro
 	}
 
 	return nil
+}
+
+func IsDBFullError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if strings.Contains(err.Error(), "database or disk is full") {
+		return true
+	}
+
+	return false
 }

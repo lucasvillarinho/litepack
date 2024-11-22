@@ -39,7 +39,6 @@ type Cache interface {
 // NewCache creates a new cache instance with the given name and applies any provided options.
 // The cache is backed by an SQLite database.
 //
-// The path is used to create a database file with the format "<path>_lpack_cache.db".
 // The cache is automatically created if it does not exist.
 //
 // Parameters:
@@ -129,7 +128,7 @@ func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Dur
 
 		if err := ch.queries.UpsertCache(context.Background(), params); err != nil {
 			// If the database is full, purge the cache and try again.
-			if ch.Database.IsDBFullError(err) {
+			if database.IsDBFullError(err) {
 				if err = ch.PurgeItens(ctx); err != nil {
 					return fmt.Errorf("error purging cache: %w", err)
 				}
