@@ -122,7 +122,11 @@ func (ch *cache) setupCache(ctx context.Context) error {
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	attempt := 0
+	maxAttempts := 2
+
 	retryFunc := func() error {
+		attempt++
 		now := ch.timeSource.Now().In(ch.timeSource.Timezone)
 		expiresAt := now.Add(ttl)
 
@@ -135,20 +139,21 @@ func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Dur
 
 		if err := ch.queries.UpsertCache(context.Background(), params); err != nil {
 			// If the database is full, purge the cache and try again.
-			if database.IsDBFullError(err) {
+
+			if database.IsDBFullError(err) && attempt < maxAttempts {
 				if err = ch.PurgeItens(ctx); err != nil {
 					return fmt.Errorf("error purging cache: %w", err)
 				}
 			}
-			return fmt.Errorf("error executing query: %w", err)
+			return fmt.Errorf("error setting cache: %w", err)
 		}
 
 		return nil
 	}
 
 	// Retry the set operation if the database is full
-	if err := helpers.Retry(ctx, retryFunc, 2); err != nil {
-		return fmt.Errorf("error retrying set: %w", err)
+	if err := helpers.Retry(ctx, retryFunc, maxAttempts); err != nil {
+		return err
 	}
 	return nil
 }
