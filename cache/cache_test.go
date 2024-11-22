@@ -444,6 +444,7 @@ func TestSetCache(t *testing.T) {
 
 	tz := time.FixedZone("UTC", 0)
 	fixedTime := time.Date(2024, 11, 22, 12, 0, 0, 0, tz)
+	ctx := context.Background()
 
 	ch := &cache{
 		queries: queries.New(db),
@@ -451,6 +452,7 @@ func TestSetCache(t *testing.T) {
 			Timezone: tz,
 			Now:      func() time.Time { return fixedTime },
 		},
+		purgePercent: 0.2,
 	}
 
 	t.Run("should successfully set a cache item", func(t *testing.T) {
@@ -472,6 +474,69 @@ func TestSetCache(t *testing.T) {
 
 		err := ch.Set(context.Background(), key, value, ttl)
 
+		assert.NoError(t, err, "Expected no error when setting cache")
+		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("should retry the set operation if the database is full", func(t *testing.T) {
+		key := "test-key"
+		value := []byte("test-value")
+		ttl := 1 * time.Hour
+
+		expectedExpiresAt := fixedTime.Add(ttl)
+		expectedLastAccessedAt := fixedTime
+		dbMock := mocks.NewDatabaseMock(t)
+		ch.Database = dbMock
+
+		// First attempt to set the cache item
+		sqlMock.ExpectExec(`INSERT INTO cache \(key, value, expires_at, last_accessed_at\) VALUES \(\?, \?, \?, \?\) ON CONFLICT \(key\) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at`).
+			WithArgs(
+				key,
+				value,
+				expectedExpiresAt,
+				expectedLastAccessedAt,
+			).
+			WillReturnError(fmt.Errorf("database or disk is full"))
+
+		// Purge the cache and retry the set operation
+		sqlMock.ExpectBegin()
+		sqlMock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+		sqlMock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
+			WithArgs(20).
+			WillReturnResult(sqlmock.NewResult(1, 20))
+		sqlMock.ExpectCommit()
+
+		dbMock.EXPECT().
+			Vacuum(ctx, mock.Anything).
+			Return(nil).
+			Times(1)
+		dbMock.EXPECT().
+			ExecWithTx(mock.Anything, mock.Anything).
+			Run(func(ctx context.Context, fn func(*sql.Tx) error) {
+				tx, err := db.Begin()
+				assert.NoError(t, err, "Expected no error while beginning transaction")
+
+				err = fn(tx)
+				assert.NoError(t, err, "Expected no error during transaction execution")
+
+				err = tx.Commit()
+				assert.NoError(t, err, "Expected no error while committing transaction")
+			}).
+			Return(nil).
+			Times(1)
+
+		// Retry the set operation
+		sqlMock.ExpectExec(`INSERT INTO cache \(key, value, expires_at, last_accessed_at\) VALUES \(\?, \?, \?, \?\) ON CONFLICT \(key\) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at`).
+			WithArgs(
+				key,
+				value,
+				expectedExpiresAt,
+				expectedLastAccessedAt,
+			).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		err := ch.Set(context.Background(), key, value, ttl)
 		assert.NoError(t, err, "Expected no error when setting cache")
 		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
 	})
