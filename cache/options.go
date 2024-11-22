@@ -1,8 +1,6 @@
 package cache
 
 import (
-	"time"
-
 	"github.com/lucasvillarinho/litepack/internal/schedule"
 )
 
@@ -13,13 +11,6 @@ type Option func(*cache)
 func WithClearInterval(interval schedule.Interval) Option {
 	return func(c *cache) {
 		c.syncInterval = interval
-	}
-}
-
-// WithTimezone sets a custom timezone for the cache.
-func WithTimezone(location *time.Location) Option {
-	return func(c *cache) {
-		c.timezone = location
 	}
 }
 

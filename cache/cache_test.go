@@ -21,8 +21,10 @@ func TestCacheGet(t *testing.T) {
 	defer db.Close()
 
 	ch := &cache{
-		timezone: time.UTC,
-		queries:  queries.New(db),
+		timeSource: timeSource{
+			Timezone: time.UTC,
+		},
+		queries: queries.New(db),
 	}
 
 	t.Run("Should return value if key exists and is not expired", func(t *testing.T) {
@@ -91,8 +93,10 @@ func TestCacheDel(t *testing.T) {
 	defer db.Close()
 
 	ch := &cache{
-		timezone: time.UTC,
-		queries:  queries.New(db),
+		timeSource: timeSource{
+			Timezone: time.UTC,
+		},
+		queries: queries.New(db),
 	}
 
 	t.Run("Should delete the key successfully", func(t *testing.T) {
@@ -423,7 +427,6 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 		}
 
 		err = ch.purgeEntriesByPercentage(context.Background(), tx, 0.2)
-
 		assert.Error(t, err, "Expected an error for failing DELETE query")
 		assert.Equal(
 			t,
@@ -431,5 +434,45 @@ func TestCachePurgeWithTransaction(t *testing.T) {
 			err.Error(),
 			"Error message should match",
 		)
+	})
+}
+
+func TestSetCache(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	assert.NoError(t, err, "Expected no error while creating sqlmock")
+	defer db.Close()
+
+	tz := time.FixedZone("UTC", 0)
+	fixedTime := time.Date(2024, 11, 22, 12, 0, 0, 0, tz)
+
+	ch := &cache{
+		queries: queries.New(db),
+		timeSource: timeSource{
+			Timezone: tz,
+			Now:      func() time.Time { return fixedTime },
+		},
+	}
+
+	t.Run("should successfully set a cache item", func(t *testing.T) {
+		key := "test-key"
+		value := []byte("test-value")
+		ttl := 1 * time.Hour
+
+		expectedExpiresAt := fixedTime.Add(ttl)
+		expectedLastAccessedAt := fixedTime
+
+		sqlMock.ExpectExec(`INSERT INTO cache \(key, value, expires_at, last_accessed_at\) VALUES \(\?, \?, \?, \?\) ON CONFLICT \(key\) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at`).
+			WithArgs(
+				key,
+				value,
+				expectedExpiresAt,
+				expectedLastAccessedAt,
+			).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		err := ch.Set(context.Background(), key, value, ttl)
+
+		assert.NoError(t, err, "Expected no error when setting cache")
+		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 }

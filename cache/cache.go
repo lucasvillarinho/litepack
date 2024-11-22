@@ -14,10 +14,14 @@ import (
 	"github.com/lucasvillarinho/litepack/internal/schedule"
 )
 
+type timeSource struct {
+	Timezone *time.Location
+	Now      func() time.Time // Now returns the current time.
+}
+
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
 	scheduler    schedule.Scheduler
-	timezone     *time.Location
 	queries      *queries.Queries
 	syncInterval schedule.Interval
 	path         string
@@ -25,7 +29,7 @@ type cache struct {
 	purgeTimeout time.Duration
 	dbName       string
 	dbOptions    []database.Option
-
+	timeSource   timeSource
 	database.Database
 }
 
@@ -59,7 +63,6 @@ type Cache interface {
 func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	c := &cache{
 		syncInterval: schedule.EveryMinute,
-		timezone:     time.UTC,
 		purgePercent: 0.2,              // 20%
 		purgeTimeout: 30 * time.Second, // 30 seconds
 		dbName:       "lpack_cache.db",
@@ -67,6 +70,10 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 			database.WithDBSize(512 * 1024 * 1024),   // 512 MB
 			database.WithCacheSize(64 * 1024 * 1024), // 64 MB
 			database.WithPageSize(4096),              // 4 KB
+		},
+		timeSource: timeSource{
+			Timezone: time.UTC,
+			Now:      time.Now,
 		},
 	}
 
@@ -116,7 +123,7 @@ func (ch *cache) setupCache(ctx context.Context) error {
 //   - error: an error if the operation failed
 func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	retryFunc := func() error {
-		now := time.Now().In(ch.timezone)
+		now := ch.timeSource.Now().In(ch.timeSource.Timezone)
 		expiresAt := now.Add(ttl)
 
 		params := queries.UpsertCacheParams{
@@ -183,7 +190,7 @@ func (ch *cache) PurgeItens(ctx context.Context) error {
 func (ch *cache) Get(ctx context.Context, key string) ([]byte, error) {
 	paramsGet := queries.GetValueParams{
 		Key:       key,
-		ExpiresAt: time.Now().In(ch.timezone),
+		ExpiresAt: time.Now().In(ch.timeSource.Timezone),
 	}
 
 	value, err := ch.queries.GetValue(ctx, paramsGet)
@@ -196,7 +203,7 @@ func (ch *cache) Get(ctx context.Context, key string) ([]byte, error) {
 	}
 
 	paramsUpdate := queries.UpdateLastAccessedAtParams{
-		LastAccessedAt: time.Now().In(ch.timezone),
+		LastAccessedAt: time.Now().In(ch.timeSource.Timezone),
 		Key:            key,
 	}
 
