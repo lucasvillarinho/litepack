@@ -10,13 +10,13 @@ import (
 	"time"
 )
 
-const cacheCountEntries = `-- name: CacheCountEntries :one
+const countCacheEntries = `-- name: CountCacheEntries :one
 SELECT COUNT(*)
 FROM cache
 `
 
-func (q *Queries) CacheCountEntries(ctx context.Context) (int64, error) {
-	row := q.queryRow(ctx, q.cacheCountEntriesStmt, cacheCountEntries)
+func (q *Queries) CountCacheEntries(ctx context.Context) (int64, error) {
+	row := q.queryRow(ctx, q.countCacheEntriesStmt, countCacheEntries)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
