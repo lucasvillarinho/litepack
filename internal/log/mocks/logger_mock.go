@@ -21,9 +21,9 @@ func (_m *LoggerMock) EXPECT() *LoggerMock_Expecter {
 	return &LoggerMock_Expecter{mock: &_m.Mock}
 }
 
-// Error provides a mock function with given fields: ctx, err
-func (_m *LoggerMock) Error(ctx context.Context, err error) {
-	_m.Called(ctx, err)
+// Error provides a mock function with given fields: ctx, msg
+func (_m *LoggerMock) Error(ctx context.Context, msg string) {
+	_m.Called(ctx, msg)
 }
 
 // LoggerMock_Error_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Error'
@@ -33,14 +33,14 @@ type LoggerMock_Error_Call struct {
 
 // Error is a helper method to define mock.On call
 //   - ctx context.Context
-//   - err error
-func (_e *LoggerMock_Expecter) Error(ctx interface{}, err interface{}) *LoggerMock_Error_Call {
-	return &LoggerMock_Error_Call{Call: _e.mock.On("Error", ctx, err)}
+//   - msg string
+func (_e *LoggerMock_Expecter) Error(ctx interface{}, msg interface{}) *LoggerMock_Error_Call {
+	return &LoggerMock_Error_Call{Call: _e.mock.On("Error", ctx, msg)}
 }
 
-func (_c *LoggerMock_Error_Call) Run(run func(ctx context.Context, err error)) *LoggerMock_Error_Call {
+func (_c *LoggerMock_Error_Call) Run(run func(ctx context.Context, msg string)) *LoggerMock_Error_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(error))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -50,7 +50,7 @@ func (_c *LoggerMock_Error_Call) Return() *LoggerMock_Error_Call {
 	return _c
 }
 
-func (_c *LoggerMock_Error_Call) RunAndReturn(run func(context.Context, error)) *LoggerMock_Error_Call {
+func (_c *LoggerMock_Error_Call) RunAndReturn(run func(context.Context, string)) *LoggerMock_Error_Call {
 	_c.Call.Return(run)
 	return _c
 }

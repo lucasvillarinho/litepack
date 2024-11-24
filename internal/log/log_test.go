@@ -28,7 +28,7 @@ func TestLoggerError(t *testing.T) {
 			queries: queries.New(db),
 		}
 
-		lg.Error(ctx, errors.New("test error"))
+		lg.Error(ctx, errors.New("test error").Error())
 
 		assert.NoError(t, sqlMock.ExpectationsWereMet())
 	})

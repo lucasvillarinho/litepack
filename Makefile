@@ -37,8 +37,6 @@ gen-mocks-database:
 	@mockery --config database/configs/.mockery.yaml
 	@echo "Mocks generated successfully"
 
-
-
 .PHONY: gen-sqlc-log
 gen-sqlc-log:
 	@echo "Generating sqlc cache..."
@@ -49,4 +47,10 @@ gen-sqlc-log:
 gen-mocks-log:
 	@echo "Generating mocks with mockery..."
 	@mockery --config internal/log/configs/.mockery.yaml
+	@echo "Mocks generated successfully"
+
+.PHONY: gen-mocks-cron
+gen-mocks-cron:
+	@echo "Generating mocks with mockery..."
+	@mockery --config internal/cron/configs/.mockery.yaml
 	@echo "Mocks generated successfully"

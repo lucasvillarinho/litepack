@@ -20,6 +20,7 @@ const (
 
 type Cron interface {
 	Add(schedule string, task func()) (crf.EntryID, error)
+	AddAndExec(schedule string, task func()) (crf.EntryID, error)
 	Remove(entryID crf.EntryID)
 	Start()
 	Stop()
@@ -58,6 +59,25 @@ func New(timezone *time.Location) Cron {
 //   - error: if the schedule string or task is invalid
 func (c *cron) Add(schedule string, task func()) (crf.EntryID, error) {
 	return c.cron.AddFunc(schedule, task)
+}
+
+// AddAndExec schedules a task to run at the specified interval and executes it immediately.
+//
+// Parameters:
+//   - schedule: the cron schedule string (e.g., "*/5 * * * *")
+//   - task: the function to execute
+//
+// Returns:
+//   - cron.EntryID: the ID of the scheduled task
+//   - error: if the schedule string or task is invalid
+func (c *cron) AddAndExec(schedule string, task func()) (crf.EntryID, error) {
+	entryID, err := c.cron.AddFunc(schedule, task)
+	if err != nil {
+		return entryID, err
+	}
+
+	task()
+	return entryID, nil
 }
 
 // Remove cancels a scheduled task by its EntryID.

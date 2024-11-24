@@ -64,7 +64,6 @@ type Cache interface {
 //   - WithTimezone: sets a custom timezone for the cache.
 func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	c := &cache{
-		syncInterval: cron.EveryMinute,
 		purgePercent: 0.2,              // 20%
 		purgeTimeout: 30 * time.Second, // 30 seconds
 		dbName:       "lpack_cache.db",
@@ -77,7 +76,8 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 			Timezone: time.UTC,
 			Now:      time.Now,
 		},
-		cron: cron.New(time.UTC),
+		syncInterval: cron.EveryMinute,
+		cron:         cron.New(time.UTC),
 	}
 
 	for _, opt := range opts {
@@ -104,30 +104,9 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	}
 
 	// start the cron job to clear expired cache items
-	go c.clearExpiredItensCache(ctx)
+	go c.purgeExpiredItensCache(ctx)
 
 	return c, nil
-}
-
-// setupCache sets up the cache with the given configuration.
-func (ch *cache) setupCache(ctx context.Context) error {
-	// Set up the cache queries.
-	ch.queries = queries.New(ch.Database.GetEngine(ctx))
-
-	// create the cache table if it does not exist
-	err := ch.queries.CreateCacheDatabase(ctx)
-	if err != nil {
-		return fmt.Errorf("creating table: %w", err)
-	}
-
-	// create the index key_expires_at if it does not exist
-	sqlIndexKeyExpiresAt := `CREATE INDEX IF NOT EXISTS idx_key_expires_at ON cache(key, expires_at)`
-	err = ch.Database.Exec(ctx, sqlIndexKeyExpiresAt)
-	if err != nil {
-		return fmt.Errorf("creating index: %w", err)
-	}
-
-	return nil
 }
 
 // Set sets a key-value pair in the cache with the given TTL.
@@ -259,33 +238,6 @@ func (ch *cache) Del(ctx context.Context, key string) error {
 	return nil
 }
 
-// purgeEntriesByPercentage deletes a percentage of the cache entries.
-func (ch *cache) purgeEntriesByPercentage(ctx context.Context, tx *sql.Tx, percent float64) error {
-	if percent < 0 || percent > 1 {
-		return fmt.Errorf("invalid percentage: %f", percent)
-	}
-
-	queriesWityTx := queries.New(tx)
-
-	totalEntries, err := queriesWityTx.CountCacheEntries(ctx)
-	if err != nil {
-		return fmt.Errorf("count entries: %w", err)
-	}
-
-	// Calculate the number of entries to delete.
-	totalEntriesToDelete := int64(float64(totalEntries) * percent)
-	if totalEntriesToDelete == 0 {
-		return nil
-	}
-
-	err = queriesWityTx.DeleteKeysByLimit(ctx, totalEntriesToDelete)
-	if err != nil {
-		return fmt.Errorf("delete entries: %w", err)
-	}
-
-	return nil
-}
-
 // Close closes the cache and stops jobs.
 //
 // Parameters:
@@ -301,23 +253,4 @@ func (ch *cache) purgeEntriesByPercentage(ctx context.Context, tx *sql.Tx, perce
 func (ch *cache) Close(ctx context.Context) error {
 	ch.cron.Stop()
 	return ch.Database.Close(ctx)
-}
-
-// clearExpiredItensCache clears expired cache items periodically.
-func (ch *cache) clearExpiredItensCache(ctx context.Context) {
-	task := func() {
-		err := ch.queries.DeleteExpiredCache(ctx, time.Now().In(ch.timeSource.Timezone))
-		if err != nil {
-			ch.logger.Error(ctx, fmt.Errorf("error deleting expired cache: %w", err))
-			return
-		}
-	}
-
-	_, err := ch.cron.Add(string(ch.syncInterval), task)
-	if err != nil {
-		ch.logger.Error(ctx, fmt.Errorf("error adding cron task: %w", err))
-		return
-	}
-
-	ch.cron.Start()
 }

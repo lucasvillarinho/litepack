@@ -15,7 +15,7 @@ const (
 )
 
 type Logger interface {
-	Error(ctx context.Context, err error)
+	Error(ctx context.Context, msg string)
 }
 
 type logger struct {
@@ -71,10 +71,10 @@ func NewLogger(ctx context.Context, db database.Database) (Logger, error) {
 // Example:
 //
 //	logger.Error(ctx, "an error occurred")
-func (lg *logger) Error(ctx context.Context, err error) {
+func (lg *logger) Error(ctx context.Context, msg string) {
 	paransInsert := queries.InsertLogParams{
 		Level:   string(LevelError),
-		Message: err.Error(),
+		Message: msg,
 	}
 
 	_ = lg.queries.InsertLog(ctx, paransInsert)
