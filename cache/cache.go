@@ -158,31 +158,6 @@ func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Dur
 	return nil
 }
 
-// PurgeItens deletes a percentage of the cache entries.
-// The entries are deleted in ascending order of last accessed at timestamp (LRU).
-// The percentage must be between 0 and 1.
-//
-// Parameters:
-//   - ctx: the context
-//
-// Returns:
-//   - error: an error if the operation failed
-func (ch *cache) PurgeItens(ctx context.Context) error {
-	return ch.Database.ExecWithTx(ctx, func(tx *sql.Tx) error {
-		err := ch.purgeEntriesByPercentage(ctx, tx, ch.purgePercent)
-		if err != nil {
-			return fmt.Errorf("error purging cache: %w", err)
-		}
-
-		err = ch.Database.Vacuum(ctx, tx)
-		if err != nil {
-			return fmt.Errorf("error vacuuming cache: %w", err)
-		}
-
-		return nil
-	})
-}
-
 // Get retrieves a value from the cache by key.
 //
 // Parameters:
