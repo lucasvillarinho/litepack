@@ -1,0 +1,11 @@
+with-expecter: True
+filename: "{{ .InterfaceName | snakecase }}_mock.go"
+mockname: "{{ .InterfaceName }}Mock"
+dir: "./internal/log/mocks"
+outpkg: "mocks"
+packages:
+  github.com/lucasvillarinho/litepack/internal/log:
+    interfaces:            
+      Logger:                
+        config:
+          recursive: false
