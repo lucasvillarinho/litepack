@@ -94,7 +94,7 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	}
 
 	// start the cron job to clear expired cache items
-	go c.ClearExpiredItensCache(ctx)
+	go c.clearExpiredItensCache(ctx)
 
 	return c, nil
 }
@@ -269,7 +269,7 @@ func (ch *cache) purgeEntriesByPercentage(ctx context.Context, tx *sql.Tx, perce
 	return nil
 }
 
-func (ch *cache) ClearExpiredItensCache(ctx context.Context) {
+func (ch *cache) clearExpiredItensCache(ctx context.Context) {
 	task := func() {
 		err := ch.queries.DeleteExpiredCache(ctx, time.Now().In(ch.timeSource.Timezone))
 		if err != nil {
@@ -281,4 +281,6 @@ func (ch *cache) ClearExpiredItensCache(ctx context.Context) {
 	if err != nil {
 
 	}
+
+	ch.cron.Start()
 }

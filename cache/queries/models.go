@@ -9,8 +9,9 @@ import (
 )
 
 type Cache struct {
-	ExpiresAt      time.Time `json:"expires_at"`
-	LastAccessedAt time.Time `json:"last_accessed_at"`
 	Key            string    `json:"key"`
 	Value          []byte    `json:"value"`
+	CreatedAt      time.Time `json:"created_at"`
+	ExpiresAt      time.Time `json:"expires_at"`
+	LastAccessedAt time.Time `json:"last_accessed_at"`
 }

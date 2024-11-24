@@ -26,6 +26,7 @@ const createCacheDatabase = `-- name: CreateCacheDatabase :exec
 CREATE TABLE IF NOT EXISTS cache (
     key TEXT PRIMARY KEY,
     value BLOB,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
     last_accessed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 )
@@ -78,8 +79,8 @@ WHERE key = ? AND expires_at > ?
 `
 
 type GetValueParams struct {
-	ExpiresAt time.Time `json:"expires_at"`
 	Key       string    `json:"key"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 func (q *Queries) GetValue(ctx context.Context, arg GetValueParams) ([]byte, error) {
@@ -145,10 +146,10 @@ SET value = excluded.value,
 `
 
 type UpsertCacheParams struct {
-	ExpiresAt      time.Time `json:"expires_at"`
-	LastAccessedAt time.Time `json:"last_accessed_at"`
 	Key            string    `json:"key"`
 	Value          []byte    `json:"value"`
+	ExpiresAt      time.Time `json:"expires_at"`
+	LastAccessedAt time.Time `json:"last_accessed_at"`
 }
 
 func (q *Queries) UpsertCache(ctx context.Context, arg UpsertCacheParams) error {
