@@ -36,8 +36,8 @@ type cache struct {
 }
 
 type Cache interface {
-	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
-	Get(ctx context.Context, key string) ([]byte, error)
+	Set(ctx context.Context, key string, value string, ttl time.Duration) error
+	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, key string) error
 	database.Database
 }
@@ -121,7 +121,7 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 //
 // Returns:
 //   - error: an error if the operation failed
-func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+func (ch *cache) Set(ctx context.Context, key string, value string, ttl time.Duration) error {
 	attempt := 0
 	maxAttempts := 2
 
@@ -132,7 +132,7 @@ func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Dur
 
 		params := queries.UpsertCacheParams{
 			Key:            key,
-			Value:          value,
+			Value:          []byte(value),
 			ExpiresAt:      expiresAt,
 			LastAccessedAt: now,
 		}
@@ -167,7 +167,7 @@ func (ch *cache) Set(ctx context.Context, key string, value []byte, ttl time.Dur
 // Returns:
 //   - []byte: the cache value
 //   - error: an error if the operation failed
-func (ch *cache) Get(ctx context.Context, key string) ([]byte, error) {
+func (ch *cache) Get(ctx context.Context, key string) (string, error) {
 	paramsGet := queries.GetValueParams{
 		Key:       key,
 		ExpiresAt: time.Now().In(ch.timeSource.Timezone),
@@ -176,10 +176,10 @@ func (ch *cache) Get(ctx context.Context, key string) ([]byte, error) {
 	value, err := ch.queries.GetValue(ctx, paramsGet)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return "", nil
 		}
 
-		return nil, fmt.Errorf("error getting value: %w", err)
+		return "", fmt.Errorf("error getting value: %w", err)
 	}
 
 	paramsUpdate := queries.UpdateLastAccessedAtParams{
@@ -192,7 +192,7 @@ func (ch *cache) Get(ctx context.Context, key string) ([]byte, error) {
 		fmt.Printf("error updating last accessed at: %v\n", err)
 	}
 
-	return value, nil
+	return string(value), nil
 }
 
 // Del deletes a key-value pair from the cache.

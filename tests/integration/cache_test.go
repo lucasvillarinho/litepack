@@ -22,7 +22,7 @@ func TestCache(t *testing.T) {
 	t.Run("Should successfully set cache entry ", func(t *testing.T) {
 		defer lCache.Del(ctx, "key")
 
-		err := lCache.Set(ctx, "key", []byte("test"), 10*time.Second)
+		err := lCache.Set(ctx, "key", "test", 10*time.Second)
 
 		assert.Nil(t, err, "Expected to set cache entry without error, but got: %v", err)
 	})
@@ -30,7 +30,7 @@ func TestCache(t *testing.T) {
 	t.Run("Should successfully get cache entry ", func(t *testing.T) {
 		defer lCache.Del(ctx, "key")
 
-		_ = lCache.Set(ctx, "key", []byte("test"), 10*time.Second)
+		_ = lCache.Set(ctx, "key", "test", 10*time.Second)
 
 		value, err := lCache.Get(ctx, "key")
 
@@ -45,7 +45,7 @@ func TestCache(t *testing.T) {
 	})
 
 	t.Run("Should successfully delete cache entry ", func(t *testing.T) {
-		_ = lCache.Set(ctx, "key", []byte("test"), 10*time.Second)
+		_ = lCache.Set(ctx, "key", "test", 10*time.Second)
 
 		err := lCache.Del(ctx, "key")
 		if err != nil {
@@ -55,6 +55,6 @@ func TestCache(t *testing.T) {
 		value, err := lCache.Get(ctx, "key")
 
 		assert.Nil(t, err, "Expected to get cache entry without error, but got: %v", err)
-		assert.Nil(t, value, "Expected to get cache entry with value nil, but got: %v", value)
+		assert.Emptyf(t, value, "Expected to get empty cache entry, but got: %v", value)
 	})
 }

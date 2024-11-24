@@ -42,11 +42,11 @@ func TestCache_Get(t *testing.T) {
 		value, err := ch.Get(context.Background(), "existing_key")
 
 		assert.NoError(t, err, "Expected no error, but got: %v", err)
-		assert.Equal(t, []byte(expectedValue), value, "Expected cached value to match")
+		assert.Equal(t, expectedValue, value, "Expected cached value to match")
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 
-	t.Run("Should return nil if key does not exist (sql.ErrNoRows)", func(t *testing.T) {
+	t.Run("Should return empty string if key does not exist (sql.ErrNoRows)", func(t *testing.T) {
 		mock.ExpectQuery(`SELECT value FROM cache WHERE`).
 			WithArgs("non_existing_key", sqlmock.AnyArg()).
 			WillReturnError(sql.ErrNoRows)
@@ -54,7 +54,7 @@ func TestCache_Get(t *testing.T) {
 		value, err := ch.Get(context.Background(), "non_existing_key")
 
 		assert.NoError(t, err, "Expected no error for non-existing key")
-		assert.Nil(t, value, "Expected nil value for non-existing key")
+		assert.Empty(t, value, "Expected empty value for non-existing key")
 	})
 
 	t.Run("Should return error if query fails", func(t *testing.T) {
@@ -65,10 +65,11 @@ func TestCache_Get(t *testing.T) {
 		value, err := ch.Get(context.Background(), "error_key")
 
 		assert.Error(t, err, "Expected error for failing query")
-		assert.Nil(t, value, "Expected nil value for failing query")
+		assert.Empty(t, value, "Expected empty value for non-existing key")
+
 	})
 
-	t.Run("Should return nil if UPDATE query fails", func(t *testing.T) {
+	t.Run("Should return valuer if UPDATE query fails", func(t *testing.T) {
 		expectedValue := "cached_data"
 		key := "existing_key"
 
@@ -82,7 +83,7 @@ func TestCache_Get(t *testing.T) {
 
 		value, err := ch.Get(context.Background(), key)
 
-		assert.Equal(t, []byte(expectedValue), value, "Expected cached value to match")
+		assert.Equal(t, expectedValue, value, "Expected cached value to match")
 		assert.Nil(t, err, "Expected no error for failing UPDATE query")
 	})
 }
@@ -159,7 +160,7 @@ func TestCache_Set(t *testing.T) {
 
 	t.Run("should successfully set a cache item", func(t *testing.T) {
 		key := "test-key"
-		value := []byte("test-value")
+		value := "test-value"
 		ttl := 1 * time.Hour
 
 		expectedExpiresAt := fixedTime.Add(ttl)
@@ -168,7 +169,7 @@ func TestCache_Set(t *testing.T) {
 		sqlMock.ExpectExec(`INSERT INTO cache \(key, value, expires_at, last_accessed_at\) VALUES \(\?, \?, \?, \?\) ON CONFLICT \(key\) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at`).
 			WithArgs(
 				key,
-				value,
+				[]byte(value),
 				expectedExpiresAt,
 				expectedLastAccessedAt,
 			).
@@ -182,7 +183,7 @@ func TestCache_Set(t *testing.T) {
 
 	t.Run("should retry the set operation if the database is full", func(t *testing.T) {
 		key := "test-key"
-		value := []byte("test-value")
+		value := "test-value"
 		ttl := 1 * time.Hour
 
 		expectedExpiresAt := fixedTime.Add(ttl)
@@ -194,7 +195,7 @@ func TestCache_Set(t *testing.T) {
 		sqlMock.ExpectExec(`INSERT INTO cache \(key, value, expires_at, last_accessed_at\) VALUES \(\?, \?, \?, \?\) ON CONFLICT \(key\) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at`).
 			WithArgs(
 				key,
-				value,
+				[]byte(value),
 				expectedExpiresAt,
 				expectedLastAccessedAt,
 			).
@@ -232,7 +233,7 @@ func TestCache_Set(t *testing.T) {
 		sqlMock.ExpectExec(`INSERT INTO cache \(key, value, expires_at, last_accessed_at\) VALUES \(\?, \?, \?, \?\) ON CONFLICT \(key\) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at`).
 			WithArgs(
 				key,
-				value,
+				[]byte(value),
 				expectedExpiresAt,
 				expectedLastAccessedAt,
 			).
@@ -246,7 +247,7 @@ func TestCache_Set(t *testing.T) {
 
 	t.Run("should return error if the set operation fails after retrying", func(t *testing.T) {
 		key := "test-key"
-		value := []byte("test-value")
+		value := "test-value"
 		ttl := 1 * time.Hour
 
 		expectedExpiresAt := fixedTime.Add(ttl)
@@ -258,7 +259,7 @@ func TestCache_Set(t *testing.T) {
 		sqlMock.ExpectExec(`INSERT INTO cache \(key, value, expires_at, last_accessed_at\) VALUES \(\?, \?, \?, \?\) ON CONFLICT \(key\) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at`).
 			WithArgs(
 				key,
-				value,
+				[]byte(value),
 				expectedExpiresAt,
 				expectedLastAccessedAt,
 			).
@@ -297,7 +298,7 @@ func TestCache_Set(t *testing.T) {
 		sqlMock.ExpectExec(`INSERT INTO cache \(key, value, expires_at, last_accessed_at\) VALUES \(\?, \?, \?, \?\) ON CONFLICT \(key\) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at, last_accessed_at = excluded.last_accessed_at`).
 			WithArgs(
 				key,
-				value,
+				[]byte(value),
 				expectedExpiresAt,
 				expectedLastAccessedAt,
 			).
