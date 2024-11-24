@@ -10,8 +10,8 @@ import (
 
 	"github.com/lucasvillarinho/litepack/cache/queries"
 	"github.com/lucasvillarinho/litepack/database"
+	"github.com/lucasvillarinho/litepack/internal/cron"
 	"github.com/lucasvillarinho/litepack/internal/helpers"
-	"github.com/lucasvillarinho/litepack/internal/schedule"
 )
 
 type timeSource struct {
@@ -21,16 +21,16 @@ type timeSource struct {
 
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
-	scheduler    schedule.Scheduler
+	timeSource timeSource
+	cron       cron.Cron
+	database.Database
 	queries      *queries.Queries
-	syncInterval schedule.Interval
+	syncInterval cron.Interval
 	path         string
-	purgePercent float64
-	purgeTimeout time.Duration
 	dbName       string
 	dbOptions    []database.Option
-	timeSource   timeSource
-	database.Database
+	purgePercent float64
+	purgeTimeout time.Duration
 }
 
 type Cache interface {
@@ -62,7 +62,7 @@ type Cache interface {
 //   - WithTimezone: sets a custom timezone for the cache.
 func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	c := &cache{
-		syncInterval: schedule.EveryMinute,
+		syncInterval: cron.EveryMinute,
 		purgePercent: 0.2,              // 20%
 		purgeTimeout: 30 * time.Second, // 30 seconds
 		dbName:       "lpack_cache.db",
@@ -75,6 +75,7 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 			Timezone: time.UTC,
 			Now:      time.Now,
 		},
+		cron: cron.New(time.UTC),
 	}
 
 	for _, opt := range opts {
@@ -91,6 +92,9 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error setting up cache: %w", err)
 	}
+
+	// start the cron job to clear expired cache items
+	go c.ClearExpiredItensCache(ctx)
 
 	return c, nil
 }
@@ -263,4 +267,18 @@ func (ch *cache) purgeEntriesByPercentage(ctx context.Context, tx *sql.Tx, perce
 	}
 
 	return nil
+}
+
+func (ch *cache) ClearExpiredItensCache(ctx context.Context) {
+	task := func() {
+		err := ch.queries.DeleteExpiredCache(ctx, time.Now().In(ch.timeSource.Timezone))
+		if err != nil {
+
+		}
+	}
+
+	_, err := ch.cron.Add(string(ch.syncInterval), task)
+	if err != nil {
+
+	}
 }

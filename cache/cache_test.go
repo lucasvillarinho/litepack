@@ -140,7 +140,6 @@ func TestCacheDel(t *testing.T) {
 }
 
 func TestSetupCache(t *testing.T) {
-
 	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err, "Expected no error while creating sqlmock")
 	defer db.Close()
@@ -215,7 +214,6 @@ func TestPurgeItens(t *testing.T) {
 		dbMock.EXPECT().
 			ExecWithTx(mock.Anything, mock.Anything).
 			Run(func(ctx context.Context, fn func(*sql.Tx) error) {
-
 				tx, err := db.Begin()
 				assert.NoError(t, err, "Expected no error while beginning transaction")
 
@@ -271,7 +269,12 @@ func TestPurgeItens(t *testing.T) {
 		err := ch.PurgeItens(context.Background())
 
 		assert.Error(t, err, "Expected error while purging items")
-		assert.Equal(t, "count entries: simulated failure", err.Error(), "Error should mention count entries failure")
+		assert.Equal(
+			t,
+			"count entries: simulated failure",
+			err.Error(),
+			"Error should mention count entries failure",
+		)
 		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
 		dbMock.AssertExpectations(t)
 	})
@@ -314,11 +317,15 @@ func TestPurgeItens(t *testing.T) {
 		err := ch.PurgeItens(context.Background())
 
 		assert.Error(t, err, "Expected error while vacuuming")
-		assert.Equal(t, "vacuum error: simulated failure", err.Error(), "Error should mention vacuuming cache failure")
+		assert.Equal(
+			t,
+			"vacuum error: simulated failure",
+			err.Error(),
+			"Error should mention vacuuming cache failure",
+		)
 		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
 		dbMock.AssertExpectations(t)
 	})
-
 }
 
 func TestCachePurgeWithTransaction(t *testing.T) {
@@ -602,8 +609,12 @@ func TestSetCache(t *testing.T) {
 
 		err := ch.Set(context.Background(), key, value, ttl)
 		assert.Error(t, err, "Expected an error when setting cache")
-		assert.Equal(t, "error setting cache: database or disk is full", err.Error(), "Error message should match")
+		assert.Equal(
+			t,
+			"error setting cache: database or disk is full",
+			err.Error(),
+			"Error message should match",
+		)
 		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
 	})
-
 }

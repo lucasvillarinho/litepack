@@ -1,14 +1,12 @@
 package cache
 
-import (
-	"github.com/lucasvillarinho/litepack/internal/schedule"
-)
+import "github.com/lucasvillarinho/litepack/internal/cron"
 
 // CacheOption is a function that configures a cache instance.
 type Option func(*cache)
 
 // WithClearInterval sets a custom sync interval for the cache.
-func WithClearInterval(interval schedule.Interval) Option {
+func WithClearInterval(interval cron.Interval) Option {
 	return func(c *cache) {
 		c.syncInterval = interval
 	}
