@@ -117,6 +117,64 @@ func (_c *DatabaseMock_Destroy_Call) RunAndReturn(run func(context.Context) erro
 	return _c
 }
 
+// Exec provides a mock function with given fields: ctx, query, args
+func (_m *DatabaseMock) Exec(ctx context.Context, query string, args ...interface{}) error {
+	var _ca []interface{}
+	_ca = append(_ca, ctx, query)
+	_ca = append(_ca, args...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Exec")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, ...interface{}) error); ok {
+		r0 = rf(ctx, query, args...)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DatabaseMock_Exec_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Exec'
+type DatabaseMock_Exec_Call struct {
+	*mock.Call
+}
+
+// Exec is a helper method to define mock.On call
+//   - ctx context.Context
+//   - query string
+//   - args ...interface{}
+func (_e *DatabaseMock_Expecter) Exec(ctx interface{}, query interface{}, args ...interface{}) *DatabaseMock_Exec_Call {
+	return &DatabaseMock_Exec_Call{Call: _e.mock.On("Exec",
+		append([]interface{}{ctx, query}, args...)...)}
+}
+
+func (_c *DatabaseMock_Exec_Call) Run(run func(ctx context.Context, query string, args ...interface{})) *DatabaseMock_Exec_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]interface{}, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(interface{})
+			}
+		}
+		run(args[0].(context.Context), args[1].(string), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *DatabaseMock_Exec_Call) Return(_a0 error) *DatabaseMock_Exec_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DatabaseMock_Exec_Call) RunAndReturn(run func(context.Context, string, ...interface{}) error) *DatabaseMock_Exec_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ExecWithTx provides a mock function with given fields: ctx, fn
 func (_m *DatabaseMock) ExecWithTx(ctx context.Context, fn func(*sql.Tx) error) error {
 	ret := _m.Called(ctx, fn)
@@ -208,52 +266,6 @@ func (_c *DatabaseMock_GetEngine_Call) Return(_a0 drivers.Driver) *DatabaseMock_
 }
 
 func (_c *DatabaseMock_GetEngine_Call) RunAndReturn(run func(context.Context) drivers.Driver) *DatabaseMock_GetEngine_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// IsDBFullError provides a mock function with given fields: err
-func (_m *DatabaseMock) IsDBFullError(err error) bool {
-	ret := _m.Called(err)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IsDBFullError")
-	}
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(error) bool); ok {
-		r0 = rf(err)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
-}
-
-// DatabaseMock_IsDBFullError_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsDBFullError'
-type DatabaseMock_IsDBFullError_Call struct {
-	*mock.Call
-}
-
-// IsDBFullError is a helper method to define mock.On call
-//   - err error
-func (_e *DatabaseMock_Expecter) IsDBFullError(err interface{}) *DatabaseMock_IsDBFullError_Call {
-	return &DatabaseMock_IsDBFullError_Call{Call: _e.mock.On("IsDBFullError", err)}
-}
-
-func (_c *DatabaseMock_IsDBFullError_Call) Run(run func(err error)) *DatabaseMock_IsDBFullError_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(error))
-	})
-	return _c
-}
-
-func (_c *DatabaseMock_IsDBFullError_Call) Return(_a0 bool) *DatabaseMock_IsDBFullError_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *DatabaseMock_IsDBFullError_Call) RunAndReturn(run func(error) bool) *DatabaseMock_IsDBFullError_Call {
 	_c.Call.Return(run)
 	return _c
 }

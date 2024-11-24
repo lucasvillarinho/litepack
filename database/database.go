@@ -32,6 +32,7 @@ type Database interface {
 	Vacuum(ctx context.Context, tx *sql.Tx) error
 	GetEngine(ctx context.Context) drivers.Driver
 	ExecWithTx(ctx context.Context, fn func(*sql.Tx) error) error
+	Exec(ctx context.Context, query string, args ...interface{}) error
 }
 
 // NewDatabase creates a new database instance with the given DSN and applies any provided options.
@@ -254,4 +255,22 @@ func IsDBFullError(err error) bool {
 	}
 
 	return false
+}
+
+// Exec executes a query with the given arguments.
+//
+// Parameters:
+//   - ctx: the context
+//   - query: the query to execute
+//   - args: the query arguments
+//
+// Returns:
+//   - error: an error if the operation failed
+func (db *database) Exec(ctx context.Context, query string, args ...interface{}) error {
+	_, err := db.engine.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("executing query: %w", err)
+	}
+
+	return nil
 }

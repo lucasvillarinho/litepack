@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -153,6 +154,10 @@ func TestSetupCache(t *testing.T) {
 			GetEngine(mock.Anything).
 			Return(db)
 
+		dbMock.EXPECT().
+			Exec(mock.Anything, mock.Anything).
+			Return(nil)
+
 		ch := &cache{
 			queries:  queries.New(db),
 			Database: dbMock,
@@ -183,7 +188,37 @@ func TestSetupCache(t *testing.T) {
 		assert.Error(t, err, "Expected an error when table creation fails")
 		assert.Equal(
 			t,
-			"error creating table: mock create table error",
+			"creating table: mock create table error",
+			err.Error(),
+			"Expected error message to match",
+		)
+		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
+	})
+
+	t.Run("should return an error if index creation fails", func(t *testing.T) {
+		sqlMock.ExpectExec("(?i)CREATE TABLE IF NOT EXISTS cache").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		dbMock := mocks.NewDatabaseMock(t)
+		dbMock.EXPECT().
+			GetEngine(mock.Anything).
+			Return(db)
+
+		dbMock.EXPECT().
+			Exec(mock.Anything, mock.Anything).
+			Return(errors.New("unexpected error"))
+
+		ch := &cache{
+			queries:  queries.New(db),
+			Database: dbMock,
+		}
+
+		err := ch.setupCache(context.Background())
+
+		assert.Error(t, err, "Expected an error when index creation fails")
+		assert.Equal(
+			t,
+			"creating index: unexpected error",
 			err.Error(),
 			"Expected error message to match",
 		)
