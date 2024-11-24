@@ -45,7 +45,6 @@ func New(timezone *time.Location) Cron {
 	return &cron{
 		cron: crf.New(crf.WithLocation(timezone)),
 	}
-
 }
 
 // Add schedules a task to run at the specified interval.

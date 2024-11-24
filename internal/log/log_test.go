@@ -42,7 +42,6 @@ func TestNewLogger(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("should create the logger successfully", func(t *testing.T) {
-
 		sqlMock.ExpectExec("CREATE TABLE IF NOT EXISTS log").
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -59,7 +58,6 @@ func TestNewLogger(t *testing.T) {
 	})
 
 	t.Run("should return an error if table creation fails", func(t *testing.T) {
-
 		sqlMock.ExpectExec("CREATE TABLE IF NOT EXISTS log").
 			WillReturnError(fmt.Errorf("mock create table error"))
 
@@ -73,7 +71,12 @@ func TestNewLogger(t *testing.T) {
 
 		assert.Error(t, err, "Expected an error when table creation fails")
 		assert.Nil(t, lg, "Expected logger instance to be nil on error")
-		assert.Contains(t, err.Error(), "failed to create log table", "Expected error message to match")
+		assert.Contains(
+			t,
+			err.Error(),
+			"failed to create log table",
+			"Expected error message to match",
+		)
 		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all SQL expectations were met")
 	})
 }

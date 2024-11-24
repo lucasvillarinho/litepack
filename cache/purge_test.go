@@ -284,7 +284,8 @@ func TestPurge_purgeExpiredItensCache(t *testing.T) {
 		cron:    cron.New(tz),
 		timeSource: timeSource{
 			Timezone: tz,
-			Now:      func() time.Time { return timeMock }},
+			Now:      func() time.Time { return timeMock },
+		},
 		syncInterval: cron.EveryMinute,
 		logger:       loggerMock,
 	}

@@ -66,7 +66,6 @@ func TestCache_Get(t *testing.T) {
 
 		assert.Error(t, err, "Expected error for failing query")
 		assert.Empty(t, value, "Expected empty value for non-existing key")
-
 	})
 
 	t.Run("Should return valuer if UPDATE query fails", func(t *testing.T) {

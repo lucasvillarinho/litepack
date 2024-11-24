@@ -25,6 +25,7 @@ type cache struct {
 	timeSource timeSource
 	cron       cron.Cron
 	database.Database
+	logger       log.Logger
 	queries      *queries.Queries
 	syncInterval cron.Interval
 	path         string
@@ -32,7 +33,6 @@ type cache struct {
 	dbOptions    []database.Option
 	purgePercent float64
 	purgeTimeout time.Duration
-	logger       log.Logger
 }
 
 type Cache interface {
