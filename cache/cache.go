@@ -12,6 +12,7 @@ import (
 	"github.com/lucasvillarinho/litepack/database"
 	"github.com/lucasvillarinho/litepack/internal/cron"
 	"github.com/lucasvillarinho/litepack/internal/helpers"
+	"github.com/lucasvillarinho/litepack/internal/log"
 )
 
 type timeSource struct {
@@ -31,6 +32,7 @@ type cache struct {
 	dbOptions    []database.Option
 	purgePercent float64
 	purgeTimeout time.Duration
+	logger       log.Logger
 }
 
 type Cache interface {
@@ -82,11 +84,19 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 		opt(c)
 	}
 
+	/// database is used to store cache entries
 	database, err := database.NewDatabase(ctx, c.path, c.dbName, c.dbOptions...)
 	if err != nil {
 		return nil, err
 	}
 	c.Database = database
+
+	// logger is used to log errors when setting cache entries
+	logger, err := log.NewLogger(ctx, c.Database)
+	if err != nil {
+		return nil, fmt.Errorf("error creating logger: %w", err)
+	}
+	c.logger = logger
 
 	err = c.setupCache(ctx)
 	if err != nil {
@@ -276,17 +286,37 @@ func (ch *cache) purgeEntriesByPercentage(ctx context.Context, tx *sql.Tx, perce
 	return nil
 }
 
+// Close closes the cache and stops jobs.
+//
+// Parameters:
+//   - ctx: the context
+//
+// Returns:
+//   - error: an error if the operation failed
+//
+// Example:
+//
+//	cache, err := cache.NewCache(ctx)
+//	defer cache.Close(ctx)
+func (ch *cache) Close(ctx context.Context) error {
+	ch.cron.Stop()
+	return ch.Database.Close(ctx)
+}
+
+// clearExpiredItensCache clears expired cache items periodically.
 func (ch *cache) clearExpiredItensCache(ctx context.Context) {
 	task := func() {
 		err := ch.queries.DeleteExpiredCache(ctx, time.Now().In(ch.timeSource.Timezone))
 		if err != nil {
-
+			ch.logger.Error(ctx, fmt.Errorf("error deleting expired cache: %w", err))
+			return
 		}
 	}
 
 	_, err := ch.cron.Add(string(ch.syncInterval), task)
 	if err != nil {
-
+		ch.logger.Error(ctx, fmt.Errorf("error adding cron task: %w", err))
+		return
 	}
 
 	ch.cron.Start()

@@ -579,6 +579,7 @@ func TestSetCache(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		err := ch.Set(context.Background(), key, value, ttl)
+
 		assert.NoError(t, err, "Expected no error when setting cache")
 		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
 	})
@@ -643,6 +644,7 @@ func TestSetCache(t *testing.T) {
 			WillReturnError(fmt.Errorf("database or disk is full"))
 
 		err := ch.Set(context.Background(), key, value, ttl)
+
 		assert.Error(t, err, "Expected an error when setting cache")
 		assert.Equal(
 			t,
