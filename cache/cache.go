@@ -133,7 +133,7 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 //   - ctx: the context
 //   - key: the cache key
 //   - value: the cache value
-//   - ttl: the time-to-live for the cache entry
+//   - ttl: the time-to-live for the cache entry (in seconds)
 //
 // Returns:
 //   - error: an error if the operation failed
