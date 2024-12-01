@@ -21,9 +21,9 @@ lint: build ## Run lint
 
 .PHONY: test
 test:  ## Run tests
-	@go test -v -coverprofile=rawcover.out -json $$(go list ./...) 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests,empty-packages
-	@go test
-
+	@go test -v -coverprofile=rawcover.out -json $(filter-out \
+		$(shell go list ./... | grep -E "github.com/lucasvillarinho/litepack/internal/log/queries|github.com/lucasvillarinho/litepack/internal/cron/mocks|github.com/lucasvillarinho/litepack/cache/queries|github.com/lucasvillarinho/litepack/database/mocks|github.com/lucasvillarinho/litepack/internal/log/mocks"), \
+		$(shell go list ./...)) 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests,empty-packages
 
 .PHONY: gen-sqlc-cache
 gen-sqlc-cache:

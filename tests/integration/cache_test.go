@@ -7,14 +7,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lucasvillarinho/litepack"
-	"github.com/lucasvillarinho/litepack/cache"
+	lPCache "github.com/lucasvillarinho/litepack/cache"
 )
 
 func TestCache(t *testing.T) {
 	ctx := context.Background()
 
-	lCache, err := litepack.NewCache(ctx)
+	lCache, err := lPCache.NewCache(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -56,7 +55,7 @@ func TestCache(t *testing.T) {
 		value, err := lCache.Get(ctx, "key")
 
 		assert.Error(t, err, "Expected to get error when trying to get deleted cache entry")
-		assert.Equal(t, cache.ErrKeyNotFound, err, "Expected to get error 'key not found', but got: %v", err)
+		assert.Equal(t, lPCache.ErrKeyNotFound, err, "Expected to get error 'key not found', but got: %v", err)
 		assert.Emptyf(t, value, "Expected to get empty cache entry, but got: %v", value)
 	})
 }
