@@ -36,7 +36,7 @@ type Database interface {
 }
 
 // NewDatabase creates a new database instance with the given DSN and applies any provided options.
-func NewDatabase(ctx context.Context, path, dbName string, options ...Option) (*database, error) {
+func NewDatabase(ctx context.Context, path, dbName string, options ...Option) (Database, error) {
 	cfg := &config{}
 	db := &database{
 		cfg: cfg,
