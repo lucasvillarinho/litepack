@@ -20,6 +20,10 @@ type timeSource struct {
 	Now      func() time.Time // Now returns the current time.
 }
 
+var (
+	ErrKeyNotFound = fmt.Errorf("key not found")
+)
+
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
 	timeSource timeSource
@@ -176,7 +180,7 @@ func (ch *cache) Get(ctx context.Context, key string) (string, error) {
 	value, err := ch.queries.GetValue(ctx, paramsGet)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", nil
+			return "", ErrKeyNotFound
 		}
 
 		return "", fmt.Errorf("error getting value: %w", err)
