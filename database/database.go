@@ -212,7 +212,7 @@ func (db *database) GetEngine(_ context.Context) drivers.Driver {
 //
 // Returns:
 //   - error: an error if the operation failed
-func (db *database) ExecWithTx(ctx context.Context, fn func(*sql.Tx) error) error {
+func (db *database) ExecWithTx(_ context.Context, fn func(*sql.Tx) error) error {
 	tx, err := db.engine.Begin()
 	if err != nil {
 		return fmt.Errorf("error beginning transaction: %w", err)
