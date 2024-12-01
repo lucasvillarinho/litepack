@@ -6,6 +6,7 @@ import "github.com/lucasvillarinho/litepack/database/drivers"
 func WithEngine(engine drivers.Driver) Option {
 	return func(db *database, cfg *config) {
 		db.engine = engine
+		db.cfg = cfg
 	}
 }
 
@@ -13,6 +14,7 @@ func WithEngine(engine drivers.Driver) Option {
 func WithCacheSize(size int) Option {
 	return func(db *database, cfg *config) {
 		cfg.cacheSize = size
+		db.cfg = cfg
 	}
 }
 
@@ -20,6 +22,7 @@ func WithCacheSize(size int) Option {
 func WithPageSize(size int) Option {
 	return func(db *database, cfg *config) {
 		cfg.pageSize = size
+		db.cfg = cfg
 	}
 }
 
@@ -27,5 +30,6 @@ func WithPageSize(size int) Option {
 func WithDBSize(size int) Option {
 	return func(db *database, cfg *config) {
 		cfg.dbSize = size
+		db.cfg = cfg
 	}
 }

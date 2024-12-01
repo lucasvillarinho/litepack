@@ -18,7 +18,7 @@ import (
 // Returns:
 //   - dsn: the DSN string
 //   - error: an error if the operation failed
-func CreateDSN(path string, db string) (string, error) {
+func CreateDSN(path, db string) (string, error) {
 	var dsn string
 
 	if path == "" {
