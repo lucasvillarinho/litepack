@@ -14,16 +14,18 @@ format: ## Format code
 	@echo "Code formatted successfully"
 
 .PHONY: lint
-lint: build ## Run lint
+lint:  ## Run lint
 	@echo "Running linter..."
-	@golangci-lint run ./...
+	@dirs=$$(find . -name '*.go' -exec dirname {} \; | sort -u); 
+	@golangci-lint run $$dirs
 	@echo "Linter passed successfully"
 
 .PHONY: test
 test:  ## Run tests
 	@go test -v -coverprofile=rawcover.out -json $(filter-out \
-		$(shell go list ./... | grep -E "github.com/lucasvillarinho/litepack/internal/log/queries|github.com/lucasvillarinho/litepack/internal/cron/mocks|github.com/lucasvillarinho/litepack/cache/queries|github.com/lucasvillarinho/litepack/database/mocks|github.com/lucasvillarinho/litepack/internal/log/mocks"), \
+		$(shell go list ./... | grep -E "github.com/lucasvillarinho/litepack/internal/log/queries|github.com/lucasvillarinho/litepack/internal/cron/mocks|github.com/lucasvillarinho/litepack/cache/queries"), \
 		$(shell go list ./...)) 2>&1 | tee /tmp/gotest.log | gotestfmt -hide successful-tests,empty-packages
+
 
 .PHONY: gen-sqlc-cache
 gen-sqlc-cache:
