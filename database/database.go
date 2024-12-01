@@ -65,19 +65,6 @@ func NewDatabase(ctx context.Context, path, dbName string, options ...Option) (*
 	return db, nil
 }
 
-// IsDatabaseFullError checks if the given error is a database full error
-func (db *database) IsDBFullError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	if strings.Contains(err.Error(), "database or disk is full") {
-		return true
-	}
-
-	return false
-}
-
 // setupDatabase sets up the database with the given configuration.
 func (db *database) setupDatabase(ctx context.Context) error {
 	// Set journal mode to WAL
