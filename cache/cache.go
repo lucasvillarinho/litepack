@@ -101,11 +101,11 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	}
 
 	/// database is used to store cache entries
-	database, err := database.NewDatabase(ctx, c.path, c.dbName, c.dbOptions...)
+	cacheDB, err := database.NewDatabase(ctx, c.path, c.dbName, c.dbOptions...)
 	if err != nil {
 		return nil, err
 	}
-	c.Database = database
+	c.Database = cacheDB
 
 	// logger is used to log errors when setting cache entries
 	logger, err := log.NewLogger(ctx, c.Database)
