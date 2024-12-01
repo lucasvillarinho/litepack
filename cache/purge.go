@@ -90,7 +90,7 @@ func (ch *cache) purgeExpiredItensCache(ctx context.Context) {
 
 	_, err := ch.cron.AddAndExec(string(ch.syncInterval), task)
 	if err != nil {
-		err := fmt.Errorf("adding cron task: %w", err)
+		err = fmt.Errorf("adding cron task: %w", err)
 		ch.logger.Error(ctx, err.Error())
 		return
 	}
