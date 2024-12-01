@@ -147,7 +147,7 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 //	if err != nil {
 //		return err
 //	}
-func (ch *cache) Set(ctx context.Context, key string, value string, ttl time.Duration) error {
+func (ch *cache) Set(ctx context.Context, key, value string, ttl time.Duration) error {
 	attempt := 0
 	maxAttempts := 2
 
