@@ -15,14 +15,14 @@ import (
 	"github.com/lucasvillarinho/litepack/internal/log"
 )
 
+// timeSource is used to get the current time.
 type timeSource struct {
 	Timezone *time.Location
 	Now      func() time.Time // Now returns the current time.
 }
 
-var (
-	ErrKeyNotFound = fmt.Errorf("key not found")
-)
+// ErrKeyNotFound is returned when a key is not found in the cache.
+var ErrKeyNotFound = fmt.Errorf("key not found")
 
 // cache is a simple key-value store backed by an SQLite database.
 type cache struct {
@@ -39,6 +39,7 @@ type cache struct {
 	purgeTimeout time.Duration
 }
 
+// Cache is a simple key-value store backed by an SQLite database.
 type Cache interface {
 	Set(ctx context.Context, key string, value string, ttl time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
@@ -62,10 +63,21 @@ type Cache interface {
 // Configuration defaults:
 //   - syncInterval: 1 second
 //   - timezone: UTC
-
+//
 // Configuration options:
 //   - WithSyncInterval: sets a custom sync interval for the cache.
+//   - WithPath: sets the path to the cache database.
 //   - WithTimezone: sets a custom timezone for the cache.
+//   - WithPurgePercent: sets the percentage of cache entries to purge.
+//   - WithPurgeTimeout: sets the timeout for purging cache entries.
+//   - WithDBOptions: sets the database options.
+//
+// Example:
+//
+//	cache, err := cache.NewCache(ctx)
+//	if err != nil {
+//		panic(err)
+//	}
 func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	c := &cache{
 		purgePercent: 0.2,              // 20%
@@ -125,6 +137,16 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 //
 // Returns:
 //   - error: an error if the operation failed
+//
+// Example:
+//
+//	cache, err := cache.NewCache(ctx)
+//	defer cache.Close(ctx)
+//
+//	err := cache.Set(ctx, "key", "test", 10*time.Second) // no error
+//	if err != nil {
+//		return err
+//	}
 func (ch *cache) Set(ctx context.Context, key string, value string, ttl time.Duration) error {
 	attempt := 0
 	maxAttempts := 2
@@ -169,8 +191,18 @@ func (ch *cache) Set(ctx context.Context, key string, value string, ttl time.Dur
 //   - key: the cache key
 //
 // Returns:
-//   - []byte: the cache value
+//   - string: the cache value
 //   - error: an error if the operation failed
+//
+// Example:
+//
+//	cache, err := cache.NewCache(ctx)
+//	defer cache.Close(ctx)
+//
+//	value, err := cache.Get(ctx, "key") // value: test
+//	if err != nil {
+//		return err
+//	}
 func (ch *cache) Get(ctx context.Context, key string) (string, error) {
 	paramsGet := queries.GetValueParams{
 		Key:       key,
@@ -208,6 +240,13 @@ func (ch *cache) Get(ctx context.Context, key string) (string, error) {
 //
 // Returns:
 //   - error: an error if the operation failed
+//
+// Example:
+//
+//	cache, err := cache.NewCache(ctx)
+//	defer cache.Close(ctx)
+//
+//	err := cache.Del(ctx, "key") // no error
 func (ch *cache) Del(ctx context.Context, key string) error {
 	err := ch.queries.DeleteKey(ctx, key)
 	if err != nil {

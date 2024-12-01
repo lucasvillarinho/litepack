@@ -46,16 +46,19 @@ func TestCache_Get(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet(), "Not all expectations were met")
 	})
 
-	t.Run("Should return empty string if key does not exist (sql.ErrNoRows) and ErrKeyNotFound", func(t *testing.T) {
-		mock.ExpectQuery(`SELECT value FROM cache WHERE`).
-			WithArgs("non_existing_key", sqlmock.AnyArg()).
-			WillReturnError(sql.ErrNoRows)
+	t.Run(
+		"Should return empty string if key does not exist (sql.ErrNoRows) and ErrKeyNotFound",
+		func(t *testing.T) {
+			mock.ExpectQuery(`SELECT value FROM cache WHERE`).
+				WithArgs("non_existing_key", sqlmock.AnyArg()).
+				WillReturnError(sql.ErrNoRows)
 
-		value, err := ch.Get(context.Background(), "non_existing_key")
+			value, err := ch.Get(context.Background(), "non_existing_key")
 
-		assert.ErrorIs(t, err, ErrKeyNotFound, "Expected ErrKeyNotFound for non-existing key")
-		assert.Empty(t, value, "Expected empty value for non-existing key")
-	})
+			assert.ErrorIs(t, err, ErrKeyNotFound, "Expected ErrKeyNotFound for non-existing key")
+			assert.Empty(t, value, "Expected empty value for non-existing key")
+		},
+	)
 
 	t.Run("Should return error if query fails", func(t *testing.T) {
 		mock.ExpectQuery(`SELECT value FROM cache WHERE`).

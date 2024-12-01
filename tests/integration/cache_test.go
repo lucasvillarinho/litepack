@@ -55,7 +55,13 @@ func TestCache(t *testing.T) {
 		value, err := lCache.Get(ctx, "key")
 
 		assert.Error(t, err, "Expected to get error when trying to get deleted cache entry")
-		assert.Equal(t, lPCache.ErrKeyNotFound, err, "Expected to get error 'key not found', but got: %v", err)
+		assert.Equal(
+			t,
+			lPCache.ErrKeyNotFound,
+			err,
+			"Expected to get error 'key not found', but got: %v",
+			err,
+		)
 		assert.Emptyf(t, value, "Expected to get empty cache entry, but got: %v", value)
 	})
 }
