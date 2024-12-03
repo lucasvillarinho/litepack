@@ -6,22 +6,22 @@ import (
 	"github.com/lucasvillarinho/litepack/database/drivers"
 )
 
-type DriverType string
+type Driver string
 
 const (
 	// DriverMattn "github.com/mattn/go-sqlite3".
-	DriverMattn DriverType = "mattn"
+	DriverMattn Driver = "mattn"
 	// DriverModernc r "modernc.org/sqlite".
-	DriverModernc DriverType = "modernc"
+	DriverModernc Driver = "modernc"
 )
 
-var supportedDrivers = map[DriverType]func(string) (drivers.Driver, error){
+var supportedDrivers = map[Driver]func(string) (drivers.Driver, error){
 	DriverMattn:   drivers.NewMattnDriver,
 	DriverModernc: drivers.NewModerncDriver,
 }
 
 // NewEngine creates a new instance of DriverFactory.
-func NewEngine(dt DriverType, dsn string) (drivers.Driver, error) {
+func NewEngine(dt Driver, dsn string) (drivers.Driver, error) {
 	createDriverFunc, exists := supportedDrivers[dt]
 	if !exists {
 		return nil, fmt.Errorf("unsupported driver type: %s", dt)

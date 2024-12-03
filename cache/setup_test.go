@@ -39,7 +39,7 @@ func TestCache_Setup(t *testing.T) {
 			Database: dbMock,
 		}
 
-		err := ch.setupCache(context.Background())
+		err := ch.setupCacheTable(context.Background())
 
 		assert.NoError(t, err, "Expected no error while creating the cache table")
 		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
@@ -58,7 +58,7 @@ func TestCache_Setup(t *testing.T) {
 			Database: dbMock,
 		}
 
-		err := ch.setupCache(context.Background())
+		err := ch.setupCacheTable(context.Background())
 
 		assert.Error(t, err, "Expected an error when table creation fails")
 		assert.Equal(
@@ -88,7 +88,7 @@ func TestCache_Setup(t *testing.T) {
 			Database: dbMock,
 		}
 
-		err := ch.setupCache(context.Background())
+		err := ch.setupCacheTable(context.Background())
 
 		assert.Error(t, err, "Expected an error when index creation fails")
 		assert.Equal(

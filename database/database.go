@@ -14,17 +14,8 @@ import (
 
 type database struct {
 	engine drivers.Driver
-	cfg    *config
 	dsn    string
 }
-
-type config struct {
-	dbSize    int
-	cacheSize int
-	pageSize  int
-}
-
-type Option func(*database, *config)
 
 type Database interface {
 	Destroy(ctx context.Context) error
@@ -33,14 +24,17 @@ type Database interface {
 	GetEngine(ctx context.Context) drivers.Driver
 	ExecWithTx(ctx context.Context, fn func(*sql.Tx) error) error
 	Exec(ctx context.Context, query string, args ...interface{}) error
+
+	SetJournalModeWal(ctx context.Context) error
+	SetPageSize(ctx context.Context, pageSize int) error
+	SetCacheSize(ctx context.Context, cacheSize int) error
+	SetMaxPageCount(ctx context.Context, pageCount int) error
+	SetEngine(ctx context.Context, driver Driver) error
 }
 
 // NewDatabase creates a new database instance with the given DSN and applies any provided options.
-func NewDatabase(ctx context.Context, path, dbName string, options ...Option) (Database, error) {
-	cfg := &config{}
-	db := &database{
-		cfg: cfg,
-	}
+func NewDatabase(ctx context.Context, path, dbName string) (Database, error) {
+	db := &database{}
 
 	dsn, err := helpers.CreateDSN(path, dbName)
 	if err != nil {
@@ -48,62 +42,53 @@ func NewDatabase(ctx context.Context, path, dbName string, options ...Option) (D
 	}
 	db.dsn = dsn
 
-	err = db.setEngine()
+	err = db.SetEngine(ctx, DriverMattn)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up engine: %w", err)
-	}
-
-	err = db.setupDatabase(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error setting up database: %w", err)
-	}
-
-	for _, option := range options {
-		option(db, cfg)
 	}
 
 	return db, nil
 }
 
-// setupDatabase sets up the database with the given configuration.
-func (db *database) setupDatabase(ctx context.Context) error {
-	// Set journal mode to WAL
+// SetJournalMode sets the journal mode to WAL.
+//
+// Parameters:
+//   - ctx: the context
+//
+// Returns:
+//   - error: an error if the operation failed
+func (db *database) SetJournalModeWal(ctx context.Context) error {
 	_, err := db.engine.ExecContext(ctx, "PRAGMA journal_mode=WAL;")
 	if err != nil {
 		return fmt.Errorf("enabling WAL mode: %w", err)
 	}
 
-	// Set synchronous mode to NORMAL
-	_, err = db.engine.ExecContext(ctx, "PRAGMA synchronous = NORMAL;")
-	if err != nil {
-		return fmt.Errorf("setting synchronous mode: %w", err)
-	}
-
-	err = db.setPageSize(ctx)
-	if err != nil {
-		return fmt.Errorf("setting page size: %w", err)
-	}
-
-	err = db.setCacheSize(ctx)
-	if err != nil {
-		return fmt.Errorf("setting cache size: %w", err)
-	}
-
-	err = db.setPageCount(ctx)
-	if err != nil {
-		return fmt.Errorf("setting page count: %w", err)
-	}
-
 	return nil
 }
 
 // SetPageSize sets the page size.
-func (db *database) setPageSize(ctx context.Context) error {
-	if db.cfg.pageSize == 0 {
-		return nil
+//
+// Parameters:
+//   - ctx: the context
+//   - pageSize: the page size
+//
+// Returns:
+//   - error: an error if the operation failed
+//
+// Example:
+//
+//	db := database.NewDatabase(ctx, "path/to/database", "db.sqlite")
+//	defer db.Close(ctx)
+//	err := db.SetPageSize(ctx, 4096) // 4096 bytes
+//	if err != nil {
+//		return err
+//	}
+func (db *database) SetPageSize(ctx context.Context, pageSize int) error {
+	if pageSize == 0 {
+		return fmt.Errorf("invalid page size: %d", pageSize)
 	}
 
-	_, err := db.engine.ExecContext(ctx, fmt.Sprintf("PRAGMA page_size = %d;", db.cfg.pageSize))
+	_, err := db.engine.ExecContext(ctx, fmt.Sprintf("PRAGMA page_size = %d;", pageSize))
 	if err != nil {
 		return fmt.Errorf("setting page size: %w", err)
 	}
@@ -111,15 +96,33 @@ func (db *database) setPageSize(ctx context.Context) error {
 	return nil
 }
 
-// SetPageSize sets the page size.
-func (db *database) setCacheSize(ctx context.Context) error {
-	if db.cfg.cacheSize == 0 {
-		return nil
+// Set CacheSize sets the page size.
+// Cache size is the number of pages in the cache.
+// cacheSize = cacheSize/pageSize
+//
+// Parameters:
+//   - ctx: the context
+//   - cacheSize: the cache size
+//
+// Returns:
+//   - error: an error if the operation failed
+//
+// Example:
+//
+//	db := database.NewDatabase(ctx, "path/to/database", "db.sqlite")
+//	defer db.Close(ctx)
+//	err := db.SetCacheSize(ctx, 1000)
+//	if err != nil {
+//		return err
+//	}
+func (db *database) SetCacheSize(ctx context.Context, cacheSize int) error {
+	if cacheSize == 0 {
+		return fmt.Errorf("invalid cache size or page size: %d", cacheSize)
 	}
 
 	_, err := db.engine.ExecContext(
 		ctx,
-		fmt.Sprintf("PRAGMA cache_size = %d;", db.cfg.cacheSize/db.cfg.pageSize),
+		fmt.Sprintf("PRAGMA cache_size = %d;", cacheSize),
 	)
 	if err != nil {
 		return fmt.Errorf("setting cache size: %w", err)
@@ -128,15 +131,31 @@ func (db *database) setCacheSize(ctx context.Context) error {
 	return nil
 }
 
-// SetPageSize sets the page count
-func (db *database) setPageCount(ctx context.Context) error {
-	if db.cfg.pageSize == 0 || db.cfg.dbSize == 0 {
-		return nil
+// SetMaxPageCount sets the max page count
+//
+// Parameters:
+//   - ctx: the context
+//   - maxPageCount: the max page count
+//
+// Returns:
+//   - error: an error if the operation failed
+//
+// Example:
+//
+//	db := database.NewDatabase(ctx, "path/to/database", "db.sqlite")
+//	defer db.Close(ctx)
+//	err := db.SetMaxPageCount(ctx, 1000)
+//	if err != nil {
+//		return err
+//	}
+func (db *database) SetMaxPageCount(ctx context.Context, maxPageCount int) error {
+	if maxPageCount == 0 {
+		return fmt.Errorf("invalid max page count: %d", maxPageCount)
 	}
 
 	_, err := db.engine.ExecContext(
 		ctx,
-		fmt.Sprintf("PRAGMA max_page_count = %d;", db.cfg.dbSize/db.cfg.pageSize),
+		fmt.Sprintf("PRAGMA max_page_count = %d;", maxPageCount),
 	)
 	if err != nil {
 		return fmt.Errorf("setting max page count: %w", err)
@@ -145,8 +164,25 @@ func (db *database) setPageCount(ctx context.Context) error {
 	return nil
 }
 
-// setEngine creates a new database engine with the given driver and DSN.
-func (db *database) setEngine() error {
+// SetEngine creates a new database engine with the given driver and DSN.
+//
+// Parameters:
+//   - ctx: the context
+//   - driver: the database driver
+//
+// Returns:
+//   - error: an error if the operation failed
+//
+// Example:
+//
+//	db := database.NewDatabase(ctx, "path/to/database", "db.sqlite")
+//	defer db.Close(ctx)
+//
+//	err := db.SetEngine(ctx, database.DriverMattn)
+//	if err != nil {
+//		return err
+//	}
+func (db *database) SetEngine(ctx context.Context, driver Driver) error {
 	engine, err := NewEngine(DriverMattn, db.dsn)
 	if err != nil {
 		return fmt.Errorf("error creating driver: %w", err)

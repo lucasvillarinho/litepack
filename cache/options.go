@@ -3,7 +3,6 @@ package cache
 import (
 	"time"
 
-	"github.com/lucasvillarinho/litepack/database"
 	"github.com/lucasvillarinho/litepack/internal/cron"
 )
 
@@ -44,12 +43,5 @@ func WithPurgePercent(percent float64) Option {
 func WithPurgeTimeout(timeout time.Duration) Option {
 	return func(c *cache) {
 		c.purgeTimeout = timeout
-	}
-}
-
-// WithDatabaseOptions sets the database options for the cache.
-func WithDatabaseOptions(opts ...database.Option) Option {
-	return func(c *cache) {
-		c.dbOptions = opts
 	}
 }

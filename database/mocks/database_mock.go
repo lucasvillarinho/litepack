@@ -5,6 +5,7 @@ package mocks
 import (
 	context "context"
 
+	database "github.com/lucasvillarinho/litepack/database"
 	drivers "github.com/lucasvillarinho/litepack/database/drivers"
 
 	mock "github.com/stretchr/testify/mock"
@@ -266,6 +267,240 @@ func (_c *DatabaseMock_GetEngine_Call) Return(_a0 drivers.Driver) *DatabaseMock_
 }
 
 func (_c *DatabaseMock_GetEngine_Call) RunAndReturn(run func(context.Context) drivers.Driver) *DatabaseMock_GetEngine_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetCacheSize provides a mock function with given fields: ctx, cacheSize
+func (_m *DatabaseMock) SetCacheSize(ctx context.Context, cacheSize int) error {
+	ret := _m.Called(ctx, cacheSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetCacheSize")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = rf(ctx, cacheSize)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DatabaseMock_SetCacheSize_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetCacheSize'
+type DatabaseMock_SetCacheSize_Call struct {
+	*mock.Call
+}
+
+// SetCacheSize is a helper method to define mock.On call
+//   - ctx context.Context
+//   - cacheSize int
+func (_e *DatabaseMock_Expecter) SetCacheSize(ctx interface{}, cacheSize interface{}) *DatabaseMock_SetCacheSize_Call {
+	return &DatabaseMock_SetCacheSize_Call{Call: _e.mock.On("SetCacheSize", ctx, cacheSize)}
+}
+
+func (_c *DatabaseMock_SetCacheSize_Call) Run(run func(ctx context.Context, cacheSize int)) *DatabaseMock_SetCacheSize_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int))
+	})
+	return _c
+}
+
+func (_c *DatabaseMock_SetCacheSize_Call) Return(_a0 error) *DatabaseMock_SetCacheSize_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DatabaseMock_SetCacheSize_Call) RunAndReturn(run func(context.Context, int) error) *DatabaseMock_SetCacheSize_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetEngine provides a mock function with given fields: ctx, driver
+func (_m *DatabaseMock) SetEngine(ctx context.Context, driver database.Driver) error {
+	ret := _m.Called(ctx, driver)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetEngine")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, database.Driver) error); ok {
+		r0 = rf(ctx, driver)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DatabaseMock_SetEngine_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetEngine'
+type DatabaseMock_SetEngine_Call struct {
+	*mock.Call
+}
+
+// SetEngine is a helper method to define mock.On call
+//   - ctx context.Context
+//   - driver database.Driver
+func (_e *DatabaseMock_Expecter) SetEngine(ctx interface{}, driver interface{}) *DatabaseMock_SetEngine_Call {
+	return &DatabaseMock_SetEngine_Call{Call: _e.mock.On("SetEngine", ctx, driver)}
+}
+
+func (_c *DatabaseMock_SetEngine_Call) Run(run func(ctx context.Context, driver database.Driver)) *DatabaseMock_SetEngine_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(database.Driver))
+	})
+	return _c
+}
+
+func (_c *DatabaseMock_SetEngine_Call) Return(_a0 error) *DatabaseMock_SetEngine_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DatabaseMock_SetEngine_Call) RunAndReturn(run func(context.Context, database.Driver) error) *DatabaseMock_SetEngine_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetJournalModeWal provides a mock function with given fields: ctx
+func (_m *DatabaseMock) SetJournalModeWal(ctx context.Context) error {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetJournalModeWal")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DatabaseMock_SetJournalModeWal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetJournalModeWal'
+type DatabaseMock_SetJournalModeWal_Call struct {
+	*mock.Call
+}
+
+// SetJournalModeWal is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *DatabaseMock_Expecter) SetJournalModeWal(ctx interface{}) *DatabaseMock_SetJournalModeWal_Call {
+	return &DatabaseMock_SetJournalModeWal_Call{Call: _e.mock.On("SetJournalModeWal", ctx)}
+}
+
+func (_c *DatabaseMock_SetJournalModeWal_Call) Run(run func(ctx context.Context)) *DatabaseMock_SetJournalModeWal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *DatabaseMock_SetJournalModeWal_Call) Return(_a0 error) *DatabaseMock_SetJournalModeWal_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DatabaseMock_SetJournalModeWal_Call) RunAndReturn(run func(context.Context) error) *DatabaseMock_SetJournalModeWal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetMaxPageCount provides a mock function with given fields: ctx, pageCount
+func (_m *DatabaseMock) SetMaxPageCount(ctx context.Context, pageCount int) error {
+	ret := _m.Called(ctx, pageCount)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetMaxPageCount")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = rf(ctx, pageCount)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DatabaseMock_SetMaxPageCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMaxPageCount'
+type DatabaseMock_SetMaxPageCount_Call struct {
+	*mock.Call
+}
+
+// SetMaxPageCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pageCount int
+func (_e *DatabaseMock_Expecter) SetMaxPageCount(ctx interface{}, pageCount interface{}) *DatabaseMock_SetMaxPageCount_Call {
+	return &DatabaseMock_SetMaxPageCount_Call{Call: _e.mock.On("SetMaxPageCount", ctx, pageCount)}
+}
+
+func (_c *DatabaseMock_SetMaxPageCount_Call) Run(run func(ctx context.Context, pageCount int)) *DatabaseMock_SetMaxPageCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int))
+	})
+	return _c
+}
+
+func (_c *DatabaseMock_SetMaxPageCount_Call) Return(_a0 error) *DatabaseMock_SetMaxPageCount_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DatabaseMock_SetMaxPageCount_Call) RunAndReturn(run func(context.Context, int) error) *DatabaseMock_SetMaxPageCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetPageSize provides a mock function with given fields: ctx, pageSize
+func (_m *DatabaseMock) SetPageSize(ctx context.Context, pageSize int) error {
+	ret := _m.Called(ctx, pageSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetPageSize")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = rf(ctx, pageSize)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DatabaseMock_SetPageSize_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetPageSize'
+type DatabaseMock_SetPageSize_Call struct {
+	*mock.Call
+}
+
+// SetPageSize is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pageSize int
+func (_e *DatabaseMock_Expecter) SetPageSize(ctx interface{}, pageSize interface{}) *DatabaseMock_SetPageSize_Call {
+	return &DatabaseMock_SetPageSize_Call{Call: _e.mock.On("SetPageSize", ctx, pageSize)}
+}
+
+func (_c *DatabaseMock_SetPageSize_Call) Run(run func(ctx context.Context, pageSize int)) *DatabaseMock_SetPageSize_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int))
+	})
+	return _c
+}
+
+func (_c *DatabaseMock_SetPageSize_Call) Return(_a0 error) *DatabaseMock_SetPageSize_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DatabaseMock_SetPageSize_Call) RunAndReturn(run func(context.Context, int) error) *DatabaseMock_SetPageSize_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -29,14 +29,20 @@ type cache struct {
 	timeSource timeSource
 	cron       cron.Cron
 	database.Database
-	logger       log.Logger
-	queries      *queries.Queries
-	syncInterval cron.Interval
-	path         string
-	dbName       string
-	dbOptions    []database.Option
+	logger log.Logger
+
+	// purge configuration, puging is used to delete cache entries
 	purgePercent float64
 	purgeTimeout time.Duration
+	syncInterval cron.Interval
+
+	// database configuration
+	path      string
+	dbName    string
+	cacheSize int
+	pageSize  int
+	maxDBSize int
+	queries   *queries.Queries
 }
 
 // Cache is a simple key-value store backed by an SQLite database.
@@ -83,11 +89,9 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 		purgePercent: 0.2,              // 20%
 		purgeTimeout: 30 * time.Second, // 30 seconds
 		dbName:       "lpack_cache.db",
-		dbOptions: []database.Option{
-			database.WithDBSize(512 * 1024 * 1024),   // 512 MB
-			database.WithCacheSize(64 * 1024 * 1024), // 64 MB
-			database.WithPageSize(4096),              // 4 KB
-		},
+		cacheSize:    64 * 1024 * 1024,  // 64 MB
+		pageSize:     4096,              // 4 KB
+		maxDBSize:    512 * 1024 * 1024, // 512 MB
 		timeSource: timeSource{
 			Timezone: time.UTC,
 			Now:      time.Now,
@@ -101,7 +105,7 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	}
 
 	/// database is used to store cache entries
-	cacheDB, err := database.NewDatabase(ctx, c.path, c.dbName, c.dbOptions...)
+	cacheDB, err := database.NewDatabase(ctx, c.path, c.dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -114,9 +118,16 @@ func NewCache(ctx context.Context, opts ...Option) (Cache, error) {
 	}
 	c.logger = logger
 
-	err = c.setupCache(ctx)
+	// create database if it does not exist and apply database options
+	err = c.setupCacheDatabase(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up cache: %w", err)
+	}
+
+	// create cache table if it does not exist and apply indexes
+	err = c.setupCacheTable(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error setting up cache queries: %w", err)
 	}
 
 	// start the cron job to clear expired cache items
