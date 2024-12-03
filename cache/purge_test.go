@@ -36,7 +36,8 @@ func TestPurge_PurgeItens(t *testing.T) {
 		sqlMock.ExpectCommit()
 
 		dbMock.EXPECT().
-			Vacuum(ctx, mock.Anything).Return(nil)
+			Vacuum(ctx).
+			Return(nil)
 		dbMock.EXPECT().
 			ExecWithTx(mock.Anything, mock.Anything).
 			Run(func(ctx context.Context, fn func(*sql.Tx) error) {
@@ -69,7 +70,7 @@ func TestPurge_PurgeItens(t *testing.T) {
 
 		sqlMock.ExpectBegin()
 		sqlMock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
-			WillReturnError(fmt.Errorf("database error")) // Simula falha no CountEntries
+			WillReturnError(fmt.Errorf("database error"))
 		sqlMock.ExpectRollback()
 
 		dbMock.EXPECT().
@@ -84,7 +85,7 @@ func TestPurge_PurgeItens(t *testing.T) {
 				err = tx.Rollback()
 				assert.NoError(t, err, "Expected no error while rolling back transaction")
 			}).
-			Return(fmt.Errorf("count entries: simulated failure"))
+			Return(fmt.Errorf("unexpected error"))
 
 		ch := &cache{
 			queries:      queries.New(db),
@@ -97,7 +98,7 @@ func TestPurge_PurgeItens(t *testing.T) {
 		assert.Error(t, err, "Expected error while purging items")
 		assert.Equal(
 			t,
-			"count entries: simulated failure",
+			"purging cache: unexpected error",
 			err.Error(),
 			"Error should mention count entries failure",
 		)
@@ -114,7 +115,7 @@ func TestPurge_PurgeItens(t *testing.T) {
 		sqlMock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
 			WithArgs(20).
 			WillReturnResult(sqlmock.NewResult(1, 20))
-		sqlMock.ExpectRollback()
+		sqlMock.ExpectCommit()
 
 		dbMock.EXPECT().
 			ExecWithTx(mock.Anything, mock.Anything).
@@ -123,16 +124,16 @@ func TestPurge_PurgeItens(t *testing.T) {
 				assert.NoError(t, err, "Expected no error while beginning transaction")
 
 				err = fn(tx)
-				assert.Error(t, err, "Expected error during transaction execution")
+				assert.NoError(t, err, "Expected no error during transaction execution")
 
-				err = tx.Rollback()
-				assert.NoError(t, err, "Expected no error while rolling back transaction")
+				err = tx.Commit()
+				assert.NoError(t, err, "Expected no error while committing transaction")
 			}).
-			Return(fmt.Errorf("vacuum error: simulated failure"))
+			Return(nil)
 
 		dbMock.EXPECT().
-			Vacuum(ctx, mock.Anything).
-			Return(fmt.Errorf("vacuum error: simulated failure"))
+			Vacuum(ctx).
+			Return(fmt.Errorf("unexpected error"))
 
 		ch := &cache{
 			queries:      queries.New(db),
@@ -145,7 +146,7 @@ func TestPurge_PurgeItens(t *testing.T) {
 		assert.Error(t, err, "Expected error while vacuuming")
 		assert.Equal(
 			t,
-			"vacuum error: simulated failure",
+			"vacuuming cache: unexpected error",
 			err.Error(),
 			"Error should mention vacuuming cache failure",
 		)
@@ -260,6 +261,7 @@ func TestPurge_PurgeWithTransaction(t *testing.T) {
 		}
 
 		err = ch.purgeEntriesByPercentage(context.Background(), tx, 0.2)
+
 		assert.Error(t, err, "Expected an error for failing DELETE query")
 		assert.Equal(
 			t,
@@ -337,7 +339,7 @@ func TestPurgeItens(t *testing.T) {
 		sqlMock.ExpectCommit()
 
 		dbMock.EXPECT().
-			Vacuum(ctx, mock.Anything).Return(nil)
+			Vacuum(ctx).Return(nil)
 		dbMock.EXPECT().
 			ExecWithTx(mock.Anything, mock.Anything).
 			Run(func(ctx context.Context, fn func(*sql.Tx) error) {
@@ -361,93 +363,6 @@ func TestPurgeItens(t *testing.T) {
 		err := ch.PurgeItens(context.Background())
 
 		assert.NoError(t, err, "Expected no error while purging and vacuuming the database")
-		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
-		dbMock.AssertExpectations(t)
-	})
-
-	t.Run("should fail when PurgeEntriesByPercentage returns an error", func(t *testing.T) {
-		dbMock := dbMocks.NewDatabaseMock(t)
-
-		sqlMock.ExpectBegin()
-		sqlMock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
-			WillReturnError(fmt.Errorf("database error")) // Simula falha no CountEntries
-		sqlMock.ExpectRollback()
-
-		dbMock.EXPECT().
-			ExecWithTx(mock.Anything, mock.Anything).
-			Run(func(ctx context.Context, fn func(*sql.Tx) error) {
-				tx, err := db.Begin()
-				assert.NoError(t, err, "Expected no error while beginning transaction")
-
-				err = fn(tx)
-				assert.Error(t, err, "Expected error during transaction execution")
-
-				err = tx.Rollback()
-				assert.NoError(t, err, "Expected no error while rolling back transaction")
-			}).
-			Return(fmt.Errorf("count entries: simulated failure"))
-
-		ch := &cache{
-			queries:      queries.New(db),
-			purgePercent: 0.2,
-			Database:     dbMock,
-		}
-
-		err := ch.PurgeItens(context.Background())
-
-		assert.Error(t, err, "Expected error while purging items")
-		assert.Equal(
-			t,
-			"count entries: simulated failure",
-			err.Error(),
-			"Error should mention count entries failure",
-		)
-		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
-		dbMock.AssertExpectations(t)
-	})
-
-	t.Run("should fail when Vacuum returns an error", func(t *testing.T) {
-		dbMock := dbMocks.NewDatabaseMock(t)
-
-		sqlMock.ExpectBegin()
-		sqlMock.ExpectQuery(`SELECT COUNT\(\*\) FROM cache`).
-			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
-		sqlMock.ExpectExec(`DELETE FROM cache WHERE key IN \( SELECT key FROM cache ORDER BY last_accessed_at ASC LIMIT \? \)`).
-			WithArgs(20).
-			WillReturnResult(sqlmock.NewResult(1, 20))
-		sqlMock.ExpectRollback()
-		dbMock.EXPECT().
-			ExecWithTx(mock.Anything, mock.Anything).
-			Run(func(ctx context.Context, fn func(*sql.Tx) error) {
-				tx, err := db.Begin()
-				assert.NoError(t, err, "Expected no error while beginning transaction")
-
-				err = fn(tx)
-				assert.Error(t, err, "Expected error during transaction execution")
-
-				err = tx.Rollback()
-				assert.NoError(t, err, "Expected no error while rolling back transaction")
-			}).
-			Return(fmt.Errorf("vacuum error: simulated failure"))
-		dbMock.EXPECT().
-			Vacuum(ctx, mock.Anything).
-			Return(fmt.Errorf("vacuum error: simulated failure"))
-
-		ch := &cache{
-			queries:      queries.New(db),
-			purgePercent: 0.2,
-			Database:     dbMock,
-		}
-
-		err := ch.PurgeItens(context.Background())
-
-		assert.Error(t, err, "Expected error while vacuuming")
-		assert.Equal(
-			t,
-			"vacuum error: simulated failure",
-			err.Error(),
-			"Error should mention vacuuming cache failure",
-		)
 		assert.NoError(t, sqlMock.ExpectationsWereMet(), "Not all expectations were met")
 		dbMock.AssertExpectations(t)
 	})

@@ -19,19 +19,25 @@ import (
 // Returns:
 //   - error: an error if the operation failed
 func (ch *cache) PurgeItens(ctx context.Context) error {
-	return ch.Database.ExecWithTx(ctx, func(tx *sql.Tx) error {
+	err := ch.Database.ExecWithTx(ctx, func(tx *sql.Tx) error {
 		err := ch.purgeEntriesByPercentage(ctx, tx, ch.purgePercent)
 		if err != nil {
-			return fmt.Errorf("error purging cache: %w", err)
-		}
-
-		err = ch.Database.Vacuum(ctx, tx)
-		if err != nil {
-			return fmt.Errorf("error vacuuming cache: %w", err)
+			return err
 		}
 
 		return nil
 	})
+
+	if err != nil {
+		return fmt.Errorf("purging cache: %w", err)
+	}
+
+	err = ch.Database.Vacuum(ctx)
+	if err != nil {
+		return fmt.Errorf("vacuuming cache: %w", err)
+	}
+
+	return nil
 }
 
 // PurgeExpiredItems removes expired items from the cache.
@@ -45,7 +51,7 @@ func (ch *cache) PurgeExpiredItems(ctx context.Context) error {
 	now := ch.timeSource.Now().In(ch.timeSource.Timezone)
 	err := ch.queries.DeleteExpiredCache(ctx, now)
 	if err != nil {
-		return fmt.Errorf("error purging expired cache: %w", err)
+		return fmt.Errorf("purging expired cache: %w", err)
 	}
 	return nil
 }

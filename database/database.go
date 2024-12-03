@@ -20,7 +20,7 @@ type database struct {
 type Database interface {
 	Destroy(ctx context.Context) error
 	Close(ctx context.Context) error
-	Vacuum(ctx context.Context, tx *sql.Tx) error
+	Vacuum(ctx context.Context) error
 	GetEngine(ctx context.Context) drivers.Driver
 	ExecWithTx(ctx context.Context, fn func(*sql.Tx) error) error
 	Exec(ctx context.Context, query string, args ...interface{}) error
@@ -221,14 +221,13 @@ func (db *database) Close(_ context.Context) error {
 //
 // Parameters:
 //   - ctx: the context
-//   - tx: the transaction
 //
 // Returns:
 //   - error: an error if the operation failed
 //
 // ⚠️ WARNING: This operation may take a long time to complete on large databases.
-func (db *database) Vacuum(_ context.Context, tx *sql.Tx) error {
-	_, err := tx.Exec("VACUUM;")
+func (db *database) Vacuum(ctx context.Context) error {
+	_, err := db.engine.ExecContext(ctx, "VACUUM;")
 	if err != nil {
 		return fmt.Errorf("vacuuming: %w", err)
 	}

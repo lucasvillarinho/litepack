@@ -213,7 +213,7 @@ func TestCache_Set(t *testing.T) {
 		sqlMock.ExpectCommit()
 
 		dbMock.EXPECT().
-			Vacuum(ctx, mock.Anything).
+			Vacuum(ctx).
 			Return(nil).
 			Times(1)
 		dbMock.EXPECT().
@@ -278,7 +278,7 @@ func TestCache_Set(t *testing.T) {
 		sqlMock.ExpectCommit()
 
 		dbMock.EXPECT().
-			Vacuum(ctx, mock.Anything).
+			Vacuum(ctx).
 			Return(nil).
 			Times(1)
 		dbMock.EXPECT().

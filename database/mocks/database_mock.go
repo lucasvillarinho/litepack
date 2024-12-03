@@ -505,17 +505,17 @@ func (_c *DatabaseMock_SetPageSize_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
-// Vacuum provides a mock function with given fields: ctx, tx
-func (_m *DatabaseMock) Vacuum(ctx context.Context, tx *sql.Tx) error {
-	ret := _m.Called(ctx, tx)
+// Vacuum provides a mock function with given fields: ctx
+func (_m *DatabaseMock) Vacuum(ctx context.Context) error {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Vacuum")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *sql.Tx) error); ok {
-		r0 = rf(ctx, tx)
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -530,14 +530,13 @@ type DatabaseMock_Vacuum_Call struct {
 
 // Vacuum is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx *sql.Tx
-func (_e *DatabaseMock_Expecter) Vacuum(ctx interface{}, tx interface{}) *DatabaseMock_Vacuum_Call {
-	return &DatabaseMock_Vacuum_Call{Call: _e.mock.On("Vacuum", ctx, tx)}
+func (_e *DatabaseMock_Expecter) Vacuum(ctx interface{}) *DatabaseMock_Vacuum_Call {
+	return &DatabaseMock_Vacuum_Call{Call: _e.mock.On("Vacuum", ctx)}
 }
 
-func (_c *DatabaseMock_Vacuum_Call) Run(run func(ctx context.Context, tx *sql.Tx)) *DatabaseMock_Vacuum_Call {
+func (_c *DatabaseMock_Vacuum_Call) Run(run func(ctx context.Context)) *DatabaseMock_Vacuum_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*sql.Tx))
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -547,7 +546,7 @@ func (_c *DatabaseMock_Vacuum_Call) Return(_a0 error) *DatabaseMock_Vacuum_Call 
 	return _c
 }
 
-func (_c *DatabaseMock_Vacuum_Call) RunAndReturn(run func(context.Context, *sql.Tx) error) *DatabaseMock_Vacuum_Call {
+func (_c *DatabaseMock_Vacuum_Call) RunAndReturn(run func(context.Context) error) *DatabaseMock_Vacuum_Call {
 	_c.Call.Return(run)
 	return _c
 }
