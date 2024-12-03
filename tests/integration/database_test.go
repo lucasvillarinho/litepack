@@ -12,10 +12,10 @@ import (
 )
 
 func TestDatabase(t *testing.T) {
-
 	ctx := context.Background()
 	db, err := database.NewDatabase(ctx, "", "test.db")
 	assert.Nil(t, err, "Failed to initialize database")
+	defer db.Destroy(ctx)
 
 	t.Run("Should execute a simple query", func(t *testing.T) {
 		query := `CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY, value TEXT)`
@@ -27,16 +27,15 @@ func TestDatabase(t *testing.T) {
 
 	t.Run("Should insert and retrieve data", func(t *testing.T) {
 		insertQuery := `INSERT INTO test_table (value) VALUES (?)`
+		selectQuery := `SELECT value FROM test_table WHERE id = 1`
 
 		err := db.Exec(ctx, insertQuery, "test_value")
 		assert.Nil(t, err, "Expected insert query to succeed, but got: %v", err)
 
-		selectQuery := `SELECT value FROM test_table WHERE id = 1`
 		var value string
 		err = db.ExecWithTx(ctx, func(tx *sql.Tx) error {
 			return tx.QueryRowContext(ctx, selectQuery).Scan(&value)
 		})
-
 		assert.Nil(t, err, "Expected select query to succeed, but got: %v", err)
 		assert.Equal(t, "test_value", value, "Expected retrieved value to be 'test_value', but got: %v", value)
 	})
@@ -63,8 +62,8 @@ func TestDatabase(t *testing.T) {
 		assert.Nil(t, err, "Expected Exec to run successfully, but got: %v", err)
 
 		insertQuery := `INSERT INTO test_table (value) VALUES (?)`
-		err = db.Exec(ctx, insertQuery, "test_value")
 
+		err = db.Exec(ctx, insertQuery, "test_value")
 		assert.Nil(t, err, "Expected insert query to succeed, but got: %v", err)
 	})
 
@@ -80,10 +79,25 @@ func TestDatabase(t *testing.T) {
 	})
 
 	t.Run("Vacuum", func(t *testing.T) {
-		err := db.ExecWithTx(ctx, func(tx *sql.Tx) error {
-			return db.Vacuum(ctx)
-		})
-
+		err := db.Vacuum(ctx)
 		assert.Nil(t, err, "Expected Vacuum to succeed, but got: %v", err)
+	})
+
+	t.Run("Should set journal mode to WAL", func(t *testing.T) {
+		err := db.SetJournalModeWal(ctx)
+		assert.Nil(t, err, "Expected SetJournalModeWal to succeed, but got: %v", err)
+	})
+
+	t.Run("Should set page size", func(t *testing.T) {
+		err := db.SetPageSize(ctx, 4096)
+		assert.Nil(t, err, "Expected SetPageSize to succeed with valid page size, but got: %v", err)
+
+		err = db.SetPageSize(ctx, 0)
+		assert.NotNil(t, err, "Expected SetPageSize to fail with zero page size")
+		assert.Equal(t, "invalid page size: 0", err.Error(), "Expected specific error for zero page size")
+
+		err = db.SetPageSize(ctx, -1)
+		assert.NotNil(t, err, "Expected SetPageSize to fail with negative page size")
+		assert.Equal(t, "invalid page size: -1", err.Error(), "Expected specific error for negative page size")
 	})
 }

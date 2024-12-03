@@ -84,7 +84,7 @@ func (db *database) SetJournalModeWal(ctx context.Context) error {
 //		return err
 //	}
 func (db *database) SetPageSize(ctx context.Context, pageSize int) error {
-	if pageSize == 0 {
+	if pageSize <= 0 {
 		return fmt.Errorf("invalid page size: %d", pageSize)
 	}
 
@@ -116,7 +116,7 @@ func (db *database) SetPageSize(ctx context.Context, pageSize int) error {
 //		return err
 //	}
 func (db *database) SetCacheSize(ctx context.Context, cacheSize int) error {
-	if cacheSize == 0 {
+	if cacheSize <= 0 {
 		return fmt.Errorf("invalid cache size or page size: %d", cacheSize)
 	}
 
@@ -149,7 +149,7 @@ func (db *database) SetCacheSize(ctx context.Context, cacheSize int) error {
 //		return err
 //	}
 func (db *database) SetMaxPageCount(ctx context.Context, maxPageCount int) error {
-	if maxPageCount == 0 {
+	if maxPageCount <= 0 {
 		return fmt.Errorf("invalid max page count: %d", maxPageCount)
 	}
 
